@@ -86,11 +86,23 @@ authorTwoPerChapter =
 #TODO: may want to create a "dataLine" object to hold all these strings and have a print function for it specifically?
 
 
-wordsOfInterest = [] #
-mapsTo
+
+
+wordsOfInterest = {} #each word of interest will be associated via a dictionary to which field the word provides information for
+
+figNum = ""
+caption = ""
+copyright = "" #no figures have copyright yet
+objectType = "" #will compare caption text with lists that correspond to a specific object type
+materialType = "" #similarly determined to objectType
+docType = "" #similarly determined to above two
+creatorName = "" #if there is one
+
+fieldDict = {"object" : objectType, "material" : materialType, "documentation" : docType, "creator" : creatorName} #will include the above variables as 
 
 file cl = open("SAIS Figure Caption List.txt", r) #cl = captionList. Read-only
 file o = open("SAIS Metadata.csv", w+) #creates the .csv file to which we will be writing
+
 
 
 end = cl.seek(0,2) #know ehere the end of the file is
@@ -104,12 +116,7 @@ while cl.tell() is not end:	#until we reach the end of the file (rest of code sh
 	string printS #what will be printed to file
 
 
-	figNum = ""
-	caption = ""
-	copyright = "" #no figures have copyright yet
-	objectType = "" #will compare caption text with lists that correspond to a specific object type
-	materialType = "" #similarly determined to objectType
-	docType = "" #similarly determined to above two
+
 
 	strLoc = 0
 
@@ -124,8 +131,22 @@ while cl.tell() is not end:	#until we reach the end of the file (rest of code sh
 	caption = str[strLoc:]	#caption is everything after the first ' '
 
 	for word in caption:
-		if word in wordsOfInterest
+		if word in wordsOfInterest:
+			whichField = wordsOfInterest.get(word) #have string that describes field. Use to pick which string to fill in
+			fieldDict[whichField] = word 	#gives each variable the appropriate value
 
+
+	#THE FOLLOWING PIECE OF CODE ASSUMES THAT NOTHING ELSE WILL NEED TO BE PRINTED AFTER DETERMINING THE FIELDS LOCATED IN THE DICTIONARY fieldDict
+	#THIS MAY NOT ACTUALLY BE THE CASE
+
+	for x in xrange[0: len(fieldDict)]:	#for every in the dictionary
+		o.write("\""+fieldDict.values()[x]+"\"")	#print out the field value with quotes around it, so that internal punctuation does not mess up the reading of the resulting .csv file
+													#(CHECK TO SEE IF FIELDS OF DICT ARE IN CORRECT ORDER)
+
+		if x is not len(fieldDict):
+			o.write(",")	#to denote the next field
+		else:
+			o.write('\n')	#otherwise, go to next line  <-- pay attention to this, may need to change!
 
 
 
