@@ -52,37 +52,6 @@ file toc = open("Table of Contents.txt", r+)
 bookTitle = ""
 editors = [] #TODO: Move "Person" class here so can use its member functions in findPerson function
 
-
-
-def findPerson(s):
-
-
-for line in toc:
-	if bookTitle is "":
-		x = line.rfind("Title: ") #rfind returns highest index of the substring, that is to say, in this case, right after the ' '
-
-		if x != -1: 
-			bookTitle = line[x:]	#everything after the denoter
-			continue
-
-	if editors  == []:
-		
-
-
-
-
-
-
-wordsOfInterest = {} #each word of interest will be associated via a dictionary to which field the word provides information for
-
-#wordsOfInterest.update(["foo", "bar"], 42) would create two keys, foo and bar, which both point to 42
-
-fieldDict = {"object" : objectType, "material" : materialType, "documentation" : docType, "creator" : creatorName} #will include the above variables as 
-
-###############################################
-########### Main classes for Data...###########
-###############################################
-
 #person to be used to determine first and last name
 class Person():
     def __init__(self, name = "", email = "", institution = ""): #considering we only have informaion on the names of the authors, others default to ""
@@ -108,6 +77,71 @@ class Person():
 
     def display(self):
       print(info.values()) #keys not important for metadata list
+
+
+
+def findPerson(s):
+
+
+for line in toc:
+	#find the book title...
+	if bookTitle is "":
+		x = line.rfind("Title: ") #rfind returns highest index of the substring, that is to say, in this case, right after the ' '
+
+		if x != -1: 
+			bookTitle = line[x:]	#everything after the denoter
+			continue
+
+	#find the editors...
+	if editors  == [] and ", editors" in line:
+		x = find(", editors")
+		s = line[0:x]	#just the two names in s
+		name = ""
+
+		#to be moved into findPerson function
+		for word in s:
+			if word has ',' or if word is "and":
+				if word has ',': #if word has comma
+					name += word[:-1] #add everything except comma
+				#otherwise, if word is "and", name already has entire name of Person
+				editor = Person(name) #make the Person
+				editors.append(editor) #add him to list of editors
+				name = "" #reset temporary name storage
+			else:
+				name += word #add parts of names otherwise
+
+
+	#get the chapter names and associate with proper numbers...
+	#chapter name will be placed in the [chapter number - 1] index...
+	if line.rfind("Chapter ") != -1:
+		x = line.rfind("Chapter ")
+		i = line.int(x) #Chapter number
+		s = ""
+
+		#pass after the chapter number
+		for word in line:
+			if line.index(word) < i:
+				continue
+			else:
+				s = line[index(word):] #gets rest of line. According to requested formatting, this is the chapter name
+
+		chapterTitles.insert(i-1, s) #inserts the chapter title in the (chapterNumber-1)th position in the list
+
+
+
+
+
+
+
+wordsOfInterest = {} #each word of interest will be associated via a dictionary to which field the word provides information for
+
+#wordsOfInterest.update(["foo", "bar"], 42) would create two keys, foo and bar, which both point to 42
+
+fieldDict = {"object" : objectType, "material" : materialType, "documentation" : docType, "creator" : creatorName} #will include the above variables as 
+
+###############################################
+########### Main classes for Data...###########
+###############################################
 
 
 
