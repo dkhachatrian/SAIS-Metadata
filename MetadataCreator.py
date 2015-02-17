@@ -6,51 +6,32 @@ import fnmatch  #allow to search for strings with "wildcard" characters
 ######### A bunch of declarations...###########
 ###############################################
 
-DELIMITER = '\t'	#will be tab-separated CSV. (May want to change to tab-delimited?)
+DELIMITER = '\t'	#will be tab-separated CSV.
 
 
+file mf = open("Metadata Fields.txt", r+)
 
-
-metadataFields = ["Book title","Year","Description","Editor first name","Editor last name","Editor first name","Editor last name","Publisher","Publisher location","DOI","ISBN","Chapter","Chapter title","Author first name","Author last name","Email","Affiliated institution","Figure number","Caption","Copyright","Object type","Material type","Documentation type","Creator first name","Creator last name","Creator first name","Creator last name","Creator role","Cultural term","Site name","Date type","Start date","End date","Temporal terms","Latitude max","Latitude min","Longitude max","Longitude min","Projection","Geographic keywords"]
 excelHeader = ""
 
-for entry in metadataFields:
-	excelHeader = excelHeader + entry + DELIMITER
+for line in mf:
+	excelHeader = excelHeader + line + DELIMITER
 #excelHeader has extra \t at end
-
-
 excelHeader = excelHeader[0:-1] #cut off last \t
 #excelHeader does NOT have a \n at the end
 
-
-#######################################################################
-######### Gaining General Information from Table of Contents...########
-#######################################################################
+mf.close() #done with getting metadata fields from file
 
 
-#TODO: automate getting the names of the chapter titles and author names
-#chapterNumber can be determined by the index number
-chapterTitles = ["",
-"Identification, Definition, and Continuities of the Yaya-Mama Religious Tradition in the Titicaca Basin",
-"Late Formative Period Ceramics from Pukara: Insights from Excavations on the Central Pampa",
-"Stone Stelae of the Southern Basin: A Stylistic Chronology of Ancestral Personages", 
-]
-authorOnePerChapter =
-authorTwoPerChapter = 
-#TODO: fill in rest of the chapter titles
-#same within each chapter
-#make (albeit large) lists, where the cell number corresponds to the chapter number
-#list[i] -> Chapter (i+1)
+
+wordsOfInterest = {} #each word of interest will be associated via a dictionary to which field the word provides information for
+#wordsOfInterest.update(["foo", "bar"], 42) would create two keys, foo and bar, which both point to 42
+fieldDict = {"object" : objectType, "material" : materialType, "documentation" : docType, "creator" : creatorName} #will include the above variables as 
 
 
-file toc = open("Table of Contents.txt", r+)
-#Table of Contents is organized as follows:
-#Book title denoted by preceding "Title: "
-#Chapter titles denoted by "Chapter X: foobar" where X is a positive integer
-#Authors are located two lines below chapter title. There may be two authors for a chapter.
 
-bookTitle = ""
-editors = [] #TODO: Move "Person" class here so can use its member functions in findPerson function
+#########################################################
+######### Some Classes and Helper Functions...###########
+#########################################################
 
 #person to be used to determine first and last name
 class Person():
@@ -80,8 +61,46 @@ class Person():
 
 
 
-def findPerson(s):
+def findPeople(s):
+	"Takes in a string known to contain names. Returns a list of Persons, to be added to Person dictionary with corresponding chapter number"
+	
+	people = []
 
+	for word in s:
+		if word[0].isupper() and ',' in word or if word is "and": #if it's part of a name, the first letter is capitalized
+			if word has ',': #if word has comma
+				name += word[:-1] #add everything except comma
+			#otherwise, if word is "and", name already has entire name of Person
+			person = Person(name) #make the Person
+			people.append(person) #add him to list of editors
+			name = "" #reset temporary name storage
+		else:
+			name += word #add parts of names otherwise
+
+	return people
+
+
+
+
+
+#######################################################################
+######### Gaining General Information from Table of Contents...########
+#######################################################################
+
+
+
+
+
+file toc = open("Table of Contents.txt", r+)
+#Table of Contents is organized as follows:
+#Book title denoted by preceding "Title: "
+#Chapter titles denoted by "Chapter X: foobar" where X is a positive integer
+#Authors are located two lines below chapter title. There may be two authors for a chapter.
+
+bookTitle = ""
+chapterTitles = []
+editors = [] #TODO: Move "Person" class here so can use its member functions in findPerson function
+authors = {} #dictionary will have the chapter number as the key and the various authors as their values
 
 for line in toc:
 	#find the book title...
@@ -96,19 +115,10 @@ for line in toc:
 	if editors  == [] and ", editors" in line:
 		x = find(", editors")
 		s = line[0:x]	#just the two names in s
-		name = ""
+		names = findPeople(s)
+		editors = names	#editors not associated with any particular chapter, so can just be a list
 
-		#to be moved into findPerson function
-		for word in s:
-			if word has ',' or if word is "and":
-				if word has ',': #if word has comma
-					name += word[:-1] #add everything except comma
-				#otherwise, if word is "and", name already has entire name of Person
-				editor = Person(name) #make the Person
-				editors.append(editor) #add him to list of editors
-				name = "" #reset temporary name storage
-			else:
-				name += word #add parts of names otherwise
+
 
 
 	#get the chapter names and associate with proper numbers...
@@ -127,21 +137,111 @@ for line in toc:
 
 		chapterTitles.insert(i-1, s) #inserts the chapter title in the (chapterNumber-1)th position in the list
 
+	#will find author line by finding the "...." line preceding it
+	#find the authors
+	if "..." in line:
+		toc.readline() #go to next line, which has just author names
+		#########################################CHECK TO SEE WHETHER THE LINE ABOVE MESSES WITH THE FOR LOOP
+		tempAuthors = findPeople(line)
+		#current chapter (i.e., chapter to which the authors belong to) is the current length of the chapterTitles list
+		#since we already added the chapter title above
 
+		authors.update(len(chapterTitles), authors) #adds a key, chapterNumber, that has the authors (who are Persons) as their values
 
-
-
-
-
-wordsOfInterest = {} #each word of interest will be associated via a dictionary to which field the word provides information for
-
-#wordsOfInterest.update(["foo", "bar"], 42) would create two keys, foo and bar, which both point to 42
-
-fieldDict = {"object" : objectType, "material" : materialType, "documentation" : docType, "creator" : creatorName} #will include the above variables as 
+toc.close()
+#done with table of contents
 
 ###############################################
 ########### Main classes for Data...###########
 ###############################################
+
+
+#TODO: may want to create a "dataLine" object to hold all these strings and have a print function for it specifically?
+
+class DataLine:
+  "Takes in a line from the captions list as a string. Parses string for information relevant for metadata input."
+  #will hold data in a dictionary
+  def __init__(self, captionString = ""):
+    data = {} #will hold data in dictionary
+
+    #universal metadata terms
+    data["bookTitle"] = "Images in Action: The South Andean Iconographic Series"
+    data["yearOfPub"] = ""
+    data["bookDesc"] - ""
+
+    editor1 = Person("William H. Isbell") #First Editor
+    data["editor1FirstName"] = editor1["firstName"]
+    data["editor1LastName"] = editor1["lastName"]
+
+    editor2 = Person("Mauricio Uribe") #second editor
+    data["editor2FirstName"] = editor2["firstName"]
+    data["editor2LastName"] = editor2["lastName"]
+    publisher = "Cotsen Institute of Archaeology Press"
+    pubLoc = "Los Angeles, CA"
+    doi = ""
+    isbn = ""
+
+
+    #TODO: see if we can make arbitrary numbers of object types/material types
+    cString = captionString
+    figNum = getFigNum(cString)
+    caption = getCaption(cString)
+    copyright = "" #no figures have copyright yet
+    objectType1 = "" #will compare caption text with lists that correspond to a specific object type
+    objectType2 = ""
+    objectType3 = ""
+    materialType = "" #similarly determined to objectType
+    docType = "" #similarly determined to above two
+    creatorNames = findCreators(cString) #if there is one
+
+    #useful for definition functions
+    chapterNumber = int(figNum[0])
+
+  def getfigNum(self, s):
+  	"Receives caption string. Return figure number, in the form of a string."
+    x = 0
+    while s[x] is not ' ':  #figure number is everything from beginning of line to first ' '
+      x++
+    return s[0:x] #slice from position 0 up to, but not including position x
+
+  def getCaption(self, s):
+  	"Receives entire caption string. Returns the caption (i.e., the entire string except for the figure number)."
+    x = 0
+    while s[x] is not ' ':
+      x++
+    return s[x+1:] #slice from after ' ' to end, which is entire caption
+
+   def findCreators(self, s):
+   	"Receives the entire caption string. Returns a list containing any available creator names."
+   	#most of the time, if there is a drawing, the creator is said afterward with the introductory clause "by"
+   	foundBy = false
+   	while len(creatorNames) is 0:
+	   	for word in s:
+	   		if foundBy:
+	   			tempStr = ""
+	   			i = 0
+
+	   			for w in s[s.index(word)]: #for rest of words starting from word after by
+	   				if i >= 5:	#determines how many other words will be in string passed to findPersons function
+	   					break
+	   				tempStr += w
+	   				i++
+
+	   			tempNames = findPersons(tempStr)
+
+	   			if len(tempNames) != 0: #if it succeeded in finding names after the "by", probably the creator(s)
+	   				creatorNames = tempNames
+	   				#should break out of loop and function should finish by this point
+
+	   			else:	#otherwise, need to try again
+	   				foundBy = false
+
+	   		elif word.lower() is "by":
+	   			foundBy = true
+
+
+
+   	if objectType == "drawing":
 
 
 
@@ -193,63 +293,6 @@ fieldDict = {"object" : objectType, "material" : materialType, "documentation" :
 
 
 
-#TODO: may want to create a "dataLine" object to hold all these strings and have a print function for it specifically?
-#Will contain meat of the script
-class DataLine:
-  "Will hold functions that parse the caption string, and have a print function appropriate for comma-separated .csv's."
-  "To be used while looping through caption list file"
-  def __init__(self, captionString = ""):
-    data = {} #will hold data in dictionary
-
-    #universal metadata terms
-    data["bookTitle"] = "Images in Action: The South Andean Iconographic Series"
-    data["yearOfPub"] = ""
-    data["bookDesc"] - ""
-
-    editor1 = Person("William H. Isbell") #First Editor
-    data["editor1FirstName"] = editor1["firstName"]
-    data["editor1LastName"] = editor1["lastName"]
-
-    editor2 = Person("Mauricio Uribe") #second editor
-    data["editor2FirstName"] = editor2["firstName"]
-    data["editor2LastName"] = editor2["lastName"]
-    publisher = "Cotsen Institute of Archaeology Press"
-    pubLoc = "Los Angeles, CA"
-    doi = ""
-    isbn = ""
-
-    cString = captionString
-    figNum = getFigNum(cString)
-    caption = getCaption(cString)
-    copyright = "" #no figures have copyright yet
-    objectType = "" #will compare caption text with lists that correspond to a specific object type
-    materialType = "" #similarly determined to objectType
-    docType = "" #similarly determined to above two
-    creatorName = findCreator(cString) #if there is one
-
-    #useful for definition functions
-    chapterNumber = int(figNum[0])
-
-  def getfigNum(self, s):
-    x = 0
-    while s[x] is not ' ':  #figure number is everything from beginning of line to first ' '
-      x++
-    return s[0:x] #slice from position 0 up to, but not including position x
-
-  def getCaption(self, s):
-    x = 0
-    while s[x] is not ' ':
-      x++
-    return s[x+1:] #slice from after ' ' to end, which is entire caption
-
-   def findCreator(self, s):
-   	#most of the time, if there is a drawing, the creator is said afterward with the introductory clause "by"
-
-
-
-   	if objectType == "drawing":
-
-
 
 
 file cl = open("SAIS Figure Caption List.txt", r) #cl = captionList. Read-only
@@ -290,6 +333,3 @@ for line in cl:
     else:
       o.write('\n') #otherwise, go to next line  <-- pay attention to this, may need to change!
 '''
-
-
-
