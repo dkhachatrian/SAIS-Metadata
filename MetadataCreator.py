@@ -56,9 +56,17 @@ class Person():
     def getFirstName(self, name): #first name may have middle initial. Easiest to return everything except last name
       return (name - getLastName(name))[0:-1] #slices out the last space after the first name but before the LastName
 
-    def display(self):
+    def display(self):  #for debugging purposes. While printing to file, will compare metadata field term with dictionary keys before printing (makes Creator class work better)
       print(info.values()) #keys not important for metadata list
 
+'''
+class Creator(Person):
+  "Person with creator role information (if known)."
+    def __init__(self, name = "", email = "", institution = "", role = ""): #considering we only have informaion on the names of the authors, others default to ""
+        Person.__init__(self) #calls base class
+        self.info["creatorRole"] = role #adds roles to dictionary
+'''
+#may not actually need, can just add to dictionary manually since I know when I'm dealing with a creator Person
 
 
 def findPeople(s):
@@ -83,12 +91,13 @@ def findPeople(s):
 
 
 
-#######################################################################
-######### Gaining General Information from Table of Contents...########
-#######################################################################
+###################################################
+######### Gaining General Information......########
+###################################################
 
-
-
+#############
+########## From Table of Contents #################
+#############
 
 
 file toc = open("Table of Contents.txt", r+)
@@ -151,6 +160,25 @@ for line in toc:
 toc.close()
 #done with table of contents
 
+##############
+######### From Files Containing Controlled Vocabulary #########
+##############
+
+#entries will be separated by a newline character ('\n')
+file t = open("materials_taxonomy.csv", r+) #contains words for material types. Does not contain which words are associated with them.
+#E.g., in the association "vessel" --> "ceramic", only the controlled material type "ceramic" is written on its own line.
+
+objectTypeList = []
+
+for line in t:
+  objectTypeList.append(line)
+
+#TODO: create "association" file that shows which words map to what. Will then change objectTypeList to a dictionary, with the appropriate keys and values. For use when parsing caption.
+
+
+t.close()
+
+
 ###############################################
 ########### Main classes for Data...###########
 ###############################################
@@ -176,6 +204,8 @@ class DataLine:
     editor2 = Person("Mauricio Uribe") #second editor
     data["editor2FirstName"] = editor2["firstName"]
     data["editor2LastName"] = editor2["lastName"]
+
+    #above information will hopefully be read by table of contents parsing. Meaning I wouldn't need to explicitly state them here.
     publisher = "Cotsen Institute of Archaeology Press"
     pubLoc = "Los Angeles, CA"
     doi = ""
@@ -187,12 +217,11 @@ class DataLine:
     figNum = getFigNum(cString)
     caption = getCaption(cString)
     copyright = "" #no figures have copyright yet
-    objectType1 = "" #will compare caption text with lists that correspond to a specific object type
-    objectType2 = ""
-    objectType3 = ""
-    materialType = "" #similarly determined to objectType
-    docType = "" #similarly determined to above two
+    objectTypes = [] #will compare caption text with lists that correspond to a specific object type. There may be more than one object type; when printing these will be separated via a semicolon (;)
+    materialTypes = [] #similarly determined to objectType
+    docType = [] #similarly determined to above two
     creatorNames = findCreators(cString) #if there is one
+    creatorRoles = getCreatorRoles(creatorNames)
 
     #useful for definition functions
     chapterNumber = int(figNum[0])
@@ -211,37 +240,46 @@ class DataLine:
       x++
     return s[x+1:] #slice from after ' ' to end, which is entire caption
 
-   def findCreators(self, s):
-   	"Receives the entire caption string. Returns a list containing any available creator names."
-   	#most of the time, if there is a drawing, the creator is said afterward with the introductory clause "by"
-   	foundBy = false
-   	while len(creatorNames) is 0:
+  def findCreators(self, s):
+  	"Receives the entire caption string. Returns a list containing any available creator names. If known, update how "
+  	#most of the time, if there is a drawing, the creator is said afterward with the introductory clause "by". Figures from outside the group of authors tend to be "courtesy of" the figure donor.
+
+    creatorKeyPhrases = ["by", "courtesy of"] #move to declaration section?
+
+    while len(creatorNames) is 0:
 	   	for word in s:
-	   		if foundBy:
-	   			tempStr = ""
-	   			i = 0
+        #will attempt to recognize keyphrases using 
+        for entry in creatorKeyPhrases:
+          if s[index(word):].startswith(entry):
+            tempNames = ""
+            for w in s[s.index(word)]: #for rest of words starting from word after by
+              if i >= 10:  #determines how many other words will be in string passed to findPersons function (10 should be enough). Otherwise stops early when it reaches end of string
+                break
+              tempStr += w
+              i++
 
-	   			for w in s[s.index(word)]: #for rest of words starting from word after by
-	   				if i >= 5:	#determines how many other words will be in string passed to findPersons function
-	   					break
-	   				tempStr += w
-	   				i++
-
-	   			tempNames = findPersons(tempStr)
-
-	   			if len(tempNames) != 0: #if it succeeded in finding names after the "by", probably the creator(s)
-	   				creatorNames = tempNames
-	   				#should break out of loop and function should finish by this point
-
-	   			else:	#otherwise, need to try again
-	   				foundBy = false
-
-	   		elif word.lower() is "by":
-	   			foundBy = true
+            tempNames = findPeople(tempStr) #function checks if next word is capitalized --> whether word after by is a name
 
 
+            if len(tempNames) != 0: #if it succeeded in finding names after the "by", probably the creator(s)
+              creatorNames = tempNames
+              #should break out of loop and function should finish by this point, because len(creatorNames) != 0
 
-   	if objectType == "drawing":
+    #found creator by this point. Time to figure out his role.
+    for Person in creatorNames:
+      Person["creatorRole"] = ""  #give it a field in the dictionary, regardless of whether it is known. For printing to CSV
+
+   	  if docType == "drawing" or docType == "photograph":
+        Person["creatorRole"] = "Image creator" #controlled vocabulary word
+
+  def getCreatorRoles(self, l):
+    "Given a list of creators, return a list of each creator's role in the order in which the creators were located in the list."
+    roles = []
+    for Creator in l:
+      l.append(Creator["creatorRole"])
+    return roles
+
+
 
 
 
@@ -333,3 +371,7 @@ for line in cl:
     else:
       o.write('\n') #otherwise, go to next line  <-- pay attention to this, may need to change!
 '''
+
+
+cl.close()
+o.close()
