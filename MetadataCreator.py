@@ -88,8 +88,25 @@ def findPeople(s):
 	return people
 
 
+def getWordinQuotes(s):
+  "Takes in a string. Returns a string with the contents of the first word or phrase enveloped in double-quotes."
+  "Returns an empty string if no quotes in string."
+  "(For use with files containing lists of interest.)"
+  "For example, "I like pie!" will return the string literal "I like pie!" (with no escape \" surrounding it)."
 
+  contents = ""
+  i = j = 0
 
+  if '\"' in s:
+    i = s.rfind('\"') #goes to right after the first quote
+
+  if '\"' in s[i:]: #if another quote in rest of string, get it
+    j = s[i:].rfind('\"')
+
+  if i != 0 and j != 0:
+    contents = s[i:j]
+
+  return contents
 
 ###################################################
 ######### Gaining General Information......########
@@ -164,6 +181,7 @@ toc.close()
 ######### From Files Containing Controlled Vocabulary #########
 ##############
 
+'''
 #entries will be separated by a newline character ('\n')
 file t = open("materials_taxonomy.csv", r+) #contains words for material types. Does not contain which words are associated with them.
 #E.g., in the association "vessel" --> "ceramic", only the controlled material type "ceramic" is written on its own line.
@@ -177,6 +195,38 @@ for line in t:
 
 
 t.close()
+'''
+
+#text files are structured so that the master list of all possible entries starts with a "{". All entries are enclosed in quotes ("").
+#Associations are denoted in the following way: the entry from the master list is written first, followed by an equals sign "=",
+#followed by words that map to this first word, also in quotes.
+#Each newline corresponds to a new masterword being mapped.
+
+otl = open("objectType_list.txt", r+) #object type list
+
+objectTypeDict = {}
+materialTypeDict = {}
+docTypeDict = {}
+
+
+def formDictionaryfromFile(d, f):
+
+  for line in d:
+    if '{' in line:
+      for word in line:
+        loc = line.index(word)
+        entry = getWordinQuotes(line[loc:])
+
+        if entry != "":
+          d[entry] = entry #if the caption has the specific word itself, it maps to itself (i.e., a stela is a stela...)
+
+    #above if statement should occur before anything else. Use this to check which word to
+
+    elif getWordinQuotes(line) in d:  #determine which entry will be fleshed out...
+      pass #to be done next time
+
+
+
 
 
 ###############################################
