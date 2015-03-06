@@ -1,5 +1,6 @@
 from collections import namedtuple  #immutable once stated, should be fine for the fields that never change from chapter to chapter
 import fnmatch  #allow to search for strings with "wildcard" characters
+from collections import queue #may want to change my lists to queues? (Since using FIFO for printing)
 
 
 ###############################################
@@ -12,8 +13,10 @@ DELIMITER = '\t'	#will be tab-separated CSV.
 file mf = open("Metadata Fields.txt", r+)
 
 excelHeader = ""
+metadataFields = []
 
 for line in mf:
+  metadataFields.append(line)
 	excelHeader = excelHeader + line + DELIMITER
 #excelHeader has extra \t at end
 excelHeader = excelHeader[0:-1] #cut off last \t
@@ -107,6 +110,11 @@ def getWordinQuotes(s):
     contents = s[i:j]
 
   return contents
+
+
+def listToString(l):
+  "Given a list, returns a string with the values of the list separated by the appropriate delimiter."
+  
 
 ###################################################
 ######### Gaining General Information......########
@@ -203,6 +211,8 @@ t.close()
 #Each newline corresponds to a new masterword being mapped.
 
 otl = open("objectType_list.txt", r+) #object type list
+mtl = open("materialType_list.txt", r+) #material type list
+dtl = open("docType_list.txt", r+) #document type list
 
 objectTypeDict = {}
 materialTypeDict = {}
@@ -210,7 +220,8 @@ docTypeDict = {}
 
 
 def formDictionaryfromFile(d, f):
-
+  "Takes in a file with lines indicating dictionary values and associated keys. Forms the corresponding dictioary from this file."
+  "(Specifics as to file format is given in comments above.)"
   for line in d:
     if '{' in line:
       for word in line:
@@ -222,11 +233,24 @@ def formDictionaryfromFile(d, f):
 
     #above if statement should occur before anything else. Use this to check which word to
 
-    elif getWordinQuotes(line) in d:  #determine which entry will be fleshed out...
-      pass #to be done next time
+    elif getWordinQuotes(line) in d:  #determine which key will be fleshed out...
+      valueOfInterest = getWordinQuotes(line) #haven't moved from beginning of string yet, so this will grab first "quoted" word, i.e., the key
+
+      for word in line[line.index("="):]: #words after "=" are keys leading to proper value
+        d[getWordinQuotes(line[line.index(word)]:)] = valueOfInterest #ugly expression in d[] gives the next word in the series. To be used as a key to point to proper value
+
+      d.pop("", None) #removes any empty strings from dictionary that may have been added due to odd looping. Shouldn't be needed, but just in case.
 
 
+formDictionaryfromFile(objectTypeDict, otl)
+formDictionaryfromFile(materialTypeDict, mtl)
+formDictionaryfromFile(docTypeDict, dtl)
 
+#should have dictionaries I want. Don't need lists anymore.
+
+otl.close()
+mtl.close()
+dtl.close()
 
 
 ###############################################
@@ -262,14 +286,15 @@ class DataLine:
     isbn = ""
 
 
-    #TODO: see if we can make arbitrary numbers of object types/material types
+    #TODO: fix 
     cString = captionString
     figNum = getFigNum(cString)
     caption = getCaption(cString)
     copyright = "" #no figures have copyright yet
-    objectTypes = [] #will compare caption text with lists that correspond to a specific object type. There may be more than one object type; when printing these will be separated via a semicolon (;)
-    materialTypes = [] #similarly determined to objectType
-    docType = [] #similarly determined to above two
+    objectTypes = getMatchesFromString(cString, objectTypeDict)
+    materialTypes = getMatchesFromString(cString, materialTypeDict) #similarly determined to objectType
+    docTypes = getMatchesFromString(cString, docTypeDict) #similarly determined to above two
+    #Special note: the documentation type of "photograph" is assumed unless one of the other documentation types is evident from the caption text.
     creatorNames = findCreators(cString) #if there is one
     creatorRoles = getCreatorRoles(creatorNames)
 
@@ -291,7 +316,7 @@ class DataLine:
     return s[x+1:] #slice from after ' ' to end, which is entire caption
 
   def findCreators(self, s):
-  	"Receives the entire caption string. Returns a list containing any available creator names. If known, update how "
+  	"Receives the entire caption string. Returns a list containing any available creator names. If known, update their role."
   	#most of the time, if there is a drawing, the creator is said afterward with the introductory clause "by". Figures from outside the group of authors tend to be "courtesy of" the figure donor.
 
     creatorKeyPhrases = ["by", "courtesy of"] #move to declaration section?
@@ -328,6 +353,40 @@ class DataLine:
     for Creator in l:
       l.append(Creator["creatorRole"])
     return roles
+
+  def getMatchesFromString(self, s, d):
+    "Given a string, returns a list of the values for keys recognized in the string, in the order in which they appear in the string."
+    l = []
+
+    for key in d:
+      if key in s:
+        l.append(d[key])
+
+    return l
+
+  def writeToFile(self, f):
+    "Given a file, writes out its own contents to the files, according to the order in which the fields are written."
+    "(Checks order by comparing keys of itself to list of metadata fields.)"
+
+    s = ""
+
+    for key in metadataFields:
+      if key in self.data:
+        if self.data[key] is list:
+          s = listToString(self.data[key]) #STILL NEED TO IMPLEMENT
+        else:
+          s = self.data[key]
+
+      else:
+        s = ""  #means we don't have that information from the caption
+
+        f.write(s + DELIMITER)  #after going through all of them, will have extra DELIMITER at end, need to change to newline
+    
+    #after printing all the appropriate values
+    f.seek(-1, 1) #goes one byte, i.e. one character, to the left from the current position (which should be the current end of the file)
+    f.write('\n') #prints the newline, so that file is in correct position to be written by next newline file.
+                  #will need to remove last newline character at the very end of the file.
+
 
 
 
@@ -386,41 +445,9 @@ class DataLine:
 file cl = open("SAIS Figure Caption List.txt", r) #cl = captionList. Read-only
 file o = open("SAIS Metadata.csv", w+) #creates the .csv file to which we will be writing
 
-'''
-end = cl.seek(0,2) #know ehere the end of the file is
-cl.seek(0,0)  #but we should start back from the beginning
-while cl.tell() is not end: #until we reach the end of the file (rest of code should occur here)
-  line = "" #every time, str will contain one caption
-  while '\n' not in str:
-    str += cl.read(1) #add one byte at a time (1 byte = 1 char)
-  string printS #what will be printed to file
-'''
 
 for line in cl:
   lineOfData  = DataLine(line)
-
-'''
-  strLoc = 0
-  while str[strLoc] is not '.': #gets past chapter number
-    strLoc++
-  strLoc++  #gets past '.' after chapter number
-  while str[strLoc] is not ' ': #fig number from after '.' to ' '
-    figNum += str[strLoc]
-  caption = str[strLoc:]  #caption is everything after the first ' '
-  for word in caption:
-    if word in wordsOfInterest:
-      whichField = wordsOfInterest.get(word) #have string that describes field. Use to pick which string to fill in
-      fieldDict[whichField] = word  #gives each variable the appropriate value
-  #THE FOLLOWING PIECE OF CODE ASSUMES THAT NOTHING ELSE WILL NEED TO BE PRINTED AFTER DETERMINING THE FIELDS LOCATED IN THE DICTIONARY fieldDict
-  #THIS MAY NOT ACTUALLY BE THE CASE
-  for x in xrange[0: len(fieldDict)]: #for every in the dictionary
-    o.write("\""+fieldDict.values()[x]+"\"")  #print out the field value with quotes around it, so that internal punctuation does not mess up the reading of the resulting .csv file
-                          #(NEED TO CHECK TO SEE IF FIELDS OF DICT ARE IN CORRECT ORDER)
-    if x is not len(fieldDict):
-      o.write(",")  #to denote the next field
-    else:
-      o.write('\n') #otherwise, go to next line  <-- pay attention to this, may need to change!
-'''
 
 
 cl.close()
