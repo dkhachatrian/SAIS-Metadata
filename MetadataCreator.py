@@ -38,11 +38,13 @@ fieldDict = {"object" : objectType, "material" : materialType, "documentation" :
 
 #person to be used to determine first and last name
 class Person():
-    def __init__(self, name = "", email = "", institution = ""): #considering we only have informaion on the names of the authors, others default to ""
+  "A Person has a name, a role in the book (e.g. author, editor, creator), and possibly an email and/or institution."
+    def __init__(self, name = "", title = "", email = "", institution = ""): #considering we only have informaion on the names of the authors, others default to ""
         self.info = {}
 
         self.info["firstName"] = getFirstName(name)
         self.info["lastName"] = getLastName(name)
+        self.info["title"] = title
         self.info["email"] = email
         self.info["institution"] = institution
         #self.name = name
@@ -72,7 +74,7 @@ class Creator(Person):
 #may not actually need, can just add to dictionary manually since I know when I'm dealing with a creator Person
 
 
-def findPeople(s):
+def findPeople(s, r):
 	"Takes in a string known to contain names. Returns a list of Persons, to be added to Person dictionary with corresponding chapter number"
 	
 	people = []
@@ -82,7 +84,7 @@ def findPeople(s):
 			if word has ',': #if word has comma
 				name += word[:-1] #add everything except comma
 			#otherwise, if word is "and", name already has entire name of Person
-			person = Person(name) #make the Person
+			person = Person(name, r) #make the Person
 			people.append(person) #add him to list of editors
 			name = "" #reset temporary name storage
 		else:
@@ -114,6 +116,31 @@ def getWordinQuotes(s):
 
 def listToString(l):
   "Given a list, returns a string with the values of the list separated by the appropriate delimiter."
+  "(Will not have delimiter at the end of the string.)"
+  s = ""
+
+  for entry in l:
+    s = s + entry + DELIMITER
+
+  s = s[:-1] #cuts off last delimiter
+
+  return s
+
+
+def writeCSVHeaderToFile(l, f):
+  "Given a list of metadata headers in the proper order, writes them to file in the order given, separated by the appropriate delimiter."
+  "Inserts newline at the end of printing all the headers."
+
+  for entry in l:
+    f.write(entry + DELIMITER)
+
+  f.seek(-1, 1)
+  f.write('\n')
+
+def getPertinentCreatorInfo(n, r):
+  "Given two lists containing creators' names and roles, return a list containing the strings necessary for writing to CSV (first and last name, role)."
+
+  
   
 
 ###################################################
@@ -149,7 +176,7 @@ for line in toc:
 	if editors  == [] and ", editors" in line:
 		x = find(", editors")
 		s = line[0:x]	#just the two names in s
-		names = findPeople(s)
+		names = findPeople(s, "editor")
 		editors = names	#editors not associated with any particular chapter, so can just be a list
 
 
@@ -176,7 +203,7 @@ for line in toc:
 	if "..." in line:
 		toc.readline() #go to next line, which has just author names
 		#########################################CHECK TO SEE WHETHER THE LINE ABOVE MESSES WITH THE FOR LOOP
-		tempAuthors = findPeople(line)
+		tempAuthors = findPeople(line, "author")
 		#current chapter (i.e., chapter to which the authors belong to) is the current length of the chapterTitles list
 		#since we already added the chapter title above
 
@@ -188,22 +215,6 @@ toc.close()
 ##############
 ######### From Files Containing Controlled Vocabulary #########
 ##############
-
-'''
-#entries will be separated by a newline character ('\n')
-file t = open("materials_taxonomy.csv", r+) #contains words for material types. Does not contain which words are associated with them.
-#E.g., in the association "vessel" --> "ceramic", only the controlled material type "ceramic" is written on its own line.
-
-objectTypeList = []
-
-for line in t:
-  objectTypeList.append(line)
-
-#TODO: create "association" file that shows which words map to what. Will then change objectTypeList to a dictionary, with the appropriate keys and values. For use when parsing caption.
-
-
-t.close()
-'''
 
 #text files are structured so that the master list of all possible entries starts with a "{". All entries are enclosed in quotes ("").
 #Associations are denoted in the following way: the entry from the master list is written first, followed by an equals sign "=",
@@ -267,10 +278,12 @@ class DataLine:
     data = {} #will hold data in dictionary
 
     #universal metadata terms
-    data["bookTitle"] = "Images in Action: The South Andean Iconographic Series"
+    data["Book Title"] = bookTitle
     data["yearOfPub"] = ""
     data["bookDesc"] - ""
 
+
+'''
     editor1 = Person("William H. Isbell") #First Editor
     data["editor1FirstName"] = editor1["firstName"]
     data["editor1LastName"] = editor1["lastName"]
@@ -278,6 +291,8 @@ class DataLine:
     editor2 = Person("Mauricio Uribe") #second editor
     data["editor2FirstName"] = editor2["firstName"]
     data["editor2LastName"] = editor2["lastName"]
+'''
+    data["editorList"] = editors
 
     #above information will hopefully be read by table of contents parsing. Meaning I wouldn't need to explicitly state them here.
     publisher = "Cotsen Institute of Archaeology Press"
@@ -297,9 +312,12 @@ class DataLine:
     #Special note: the documentation type of "photograph" is assumed unless one of the other documentation types is evident from the caption text.
     creatorNames = findCreators(cString) #if there is one
     creatorRoles = getCreatorRoles(creatorNames)
+    creators - getPertinentCreatorInfo(creatorNames, creatorRoles)
 
     #useful for definition functions
     chapterNumber = int(figNum[0])
+
+    chapterAuthors = authors[chapterNumber] #returns a list of 1 or more authors, if implemented properly
 
   def getfigNum(self, s):
   	"Receives caption string. Return figure number, in the form of a string."
@@ -370,15 +388,22 @@ class DataLine:
 
     s = ""
 
-    for key in metadataFields:
+    for key in metadataFields:  #follows the order of the metadata fields given! So don't need to worry about that
       if key in self.data:
         if self.data[key] is list:
-          s = listToString(self.data[key]) #STILL NEED TO IMPLEMENT
+          s = listToString(self.data[key])
         else:
           s = self.data[key]
 
+      elif "editor" in lower(key):
+        s = listToString(self.data["authorList"])
+      elif "author" in lower(key):
+        s = listToString(self.data["chapterAuthors"])
+      elif "creator" in lower(key):
+        s = listToString(self.data["creators"])
+
       else:
-        s = ""  #means we don't have that information from the caption
+        s = ""  #means we don't have that information from the caption (not in dataLine's dictionary).
 
         f.write(s + DELIMITER)  #after going through all of them, will have extra DELIMITER at end, need to change to newline
     
@@ -445,10 +470,14 @@ class DataLine:
 file cl = open("SAIS Figure Caption List.txt", r) #cl = captionList. Read-only
 file o = open("SAIS Metadata.csv", w+) #creates the .csv file to which we will be writing
 
+writeCSVHeaderToFile(metadataFields, o)
 
 for line in cl:
   lineOfData  = DataLine(line)
+  writeToFile(lineOfData, o)
 
+o.seek(-1, 2) #goes right before very last character in file
+o.truncate() (#removes final unnecessary newline character)
 
 cl.close()
 o.close()
