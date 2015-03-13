@@ -1,7 +1,8 @@
-from collections import namedtuple  #immutable once stated, should be fine for the fields that never change from chapter to chapter
-import fnmatch  #allow to search for strings with "wildcard" characters
-from collections import queue #may want to change my lists to queues? (Since using FIFO for printing)
+#from collections import namedtuple  #immutable once stated, should be fine for the fields that never change from chapter to chapter
+#import fnmatch  #allow to search for strings with "wildcard" characters
+#from collections import queue #may want to change my lists to queues? (Since using FIFO for printing)
 
+#Turns out I haven't needed to import anything yet...
 
 ###############################################
 ######### A bunch of declarations...###########
@@ -44,7 +45,7 @@ class Person():
 
         self.info["firstName"] = getFirstName(name)
         self.info["lastName"] = getLastName(name)
-        self.info["title"] = title
+        self.info["title"] = title #title says whether the Person is an author, creator, editor, etc.
         self.info["email"] = email
         self.info["institution"] = institution
         #self.name = name
@@ -114,13 +115,17 @@ def getWordinQuotes(s):
   return contents
 
 
-def listToString(l):
-  "Given a list, returns a string with the values of the list separated by the appropriate delimiter."
+def listToString(l, d):
+  "Given a list l, returns a string with the values of the list separated by the delimiter passed in, d."
   "(Will not have delimiter at the end of the string.)"
+  "If passed in a list of Persons, the function will call getPertinentPersonInfo and use its result in creating the string it returns."
   s = ""
 
   for entry in l:
-    s = s + entry + DELIMITER
+    if entry is str:
+      s = s + entry + d
+    elif entry is Person: #does this work? if not, fix!
+      s = s + getPertinentPersonInfo(entry) + d
 
   s = s[:-1] #cuts off last delimiter
 
@@ -137,11 +142,29 @@ def writeCSVHeaderToFile(l, f):
   f.seek(-1, 1)
   f.write('\n')
 
-def getPertinentCreatorInfo(n, r):
-  "Given two lists containing creators' names and roles, return a list containing the strings necessary for writing to CSV (first and last name, role)."
+def getPertinentPersonInfo(d):
+  "Given a dictionary containing a Person's data, return a string necessary for writing to CSV (first and last name, role if a creator)."
+  "Will not have delimiter at end of string."
+  "(ORDER OF FIELDS IS HARDWIRED INTO CODE. Need to change if order of metadata fields changes.)"
 
+  s = ""
+
+  s = d["firstName"] + DELIMITER + d["lastName"]
+
+  if d["title"] == "creator":
+    s += DELIMITER + d["creatorRole"]
+
+  return s
   
-  
+def getMatchesFromString(s, d):
+  "Given a string, returns a list of the values for keys recognized in the string, in the order in which they appear in the string."
+  l = []
+
+  for key in d:
+    if key in s:
+      l.append(d[key])
+
+  return l
 
 ###################################################
 ######### Gaining General Information......########
@@ -277,47 +300,73 @@ class DataLine:
   def __init__(self, captionString = ""):
     data = {} #will hold data in dictionary
 
-    #universal metadata terms
+    #keys of 'data' are chosen to match with the keys placed in metadataFields, to handle order of printing.
+    #For cases where there may be multiple fields for information held in one object, e.g. the names of the editors or creators (which are held in a list),
+    #the key is named after the after the first metadata field pertaining to them (e.g. "Editor 1 First Name"), and the key points to a string that can be directly written to file.
+
+    ###   UNIVERSAL METADATA TERMS  ###
+
     data["Book Title"] = bookTitle
-    data["yearOfPub"] = ""
-    data["bookDesc"] - ""
+    #bookTitle is variable found in "Getting information from Table of Contents" section
+    data["Year"] = ""
+    data["Description"] - ""
 
 
-'''
-    editor1 = Person("William H. Isbell") #First Editor
-    data["editor1FirstName"] = editor1["firstName"]
-    data["editor1LastName"] = editor1["lastName"]
 
-    editor2 = Person("Mauricio Uribe") #second editor
-    data["editor2FirstName"] = editor2["firstName"]
-    data["editor2LastName"] = editor2["lastName"]
-'''
-    data["editorList"] = editors
+    editorsToBeWritten = getPertinentPersonInfo(editors) 
+    #editors is variable found in "Getting information from Table of Contents" section
+
+    data["Editor 1 first name"] = editorsToBeWritten
 
     #above information will hopefully be read by table of contents parsing. Meaning I wouldn't need to explicitly state them here.
-    publisher = "Cotsen Institute of Archaeology Press"
-    pubLoc = "Los Angeles, CA"
-    doi = ""
-    isbn = ""
+    data["Publisher"] = "Cotsen Institute of Archaeology Press"
+    data["Publisher location"] = "Los Angeles, CA"
+    data["DOI"] = ""
+    data["ISBN"] = ""
 
+    ###   METADATA TERMS THAT VARY BY CHAPTER  ###
 
-    #TODO: fix 
-    cString = captionString
-    figNum = getFigNum(cString)
-    caption = getCaption(cString)
-    copyright = "" #no figures have copyright yet
-    objectTypes = getMatchesFromString(cString, objectTypeDict)
-    materialTypes = getMatchesFromString(cString, materialTypeDict) #similarly determined to objectType
-    docTypes = getMatchesFromString(cString, docTypeDict) #similarly determined to above two
-    #Special note: the documentation type of "photograph" is assumed unless one of the other documentation types is evident from the caption text.
-    creatorNames = findCreators(cString) #if there is one
-    creatorRoles = getCreatorRoles(creatorNames)
-    creators - getPertinentCreatorInfo(creatorNames, creatorRoles)
-
-    #useful for definition functions
+    #useful for definition of functions
     chapterNumber = int(figNum[0])
+    data["Chapter"] = chapterNumber
+    data["Chapter Title"] = chapterTitles[chapterNumber - 1] #chapter title i is stored in the (i-1)'th position in the chapterTitles lists.
+    #chaperTitles is variable found in "Getting information from Table of Contents" section
 
-    chapterAuthors = authors[chapterNumber] #returns a list of 1 or more authors, if implemented properly
+
+    chapterAuthors = authors[chapterNumber] #returns a list of 1 or more authors, if implemented properly.
+    #authors is variable found in "Getting information from Table of Contents" section
+    data["Author 1 first name"] = listToString(chapterAuthors, DELIMITER) #listToString will call "getPertinentPersonInfo" function if list is composed of Persons.
+
+
+    ###   METADATA TERMS THAT VARY BY FIGURE  ###
+
+    cString = captionString
+
+    figNum = getFigNum(cString)
+    data["Figure number"] = figNum
+
+    caption = getCaption(cString)
+    data["Caption"] = caption
+
+    copyright = "" #no figures have copyright yet
+    data["Copyright"] = copyright
+
+    objectTypes = getMatchesFromString(cString, objectTypeDict)
+    data["Object type"] = listToString(objectTypes, ';')
+
+    materialTypes = getMatchesFromString(cString, materialTypeDict) #similarly determined to objectType
+    data["Material type"] = listToString(materialTypes, ';')
+
+    docTypes = getMatchesFromString(cString, docTypeDict) #similarly determined to above two
+    data["Documentation type"] = listToString(docTypes, ';')
+
+    #Special note: the documentation type of "photograph" is assumed unless one of the other documentation types is evident from the caption text.
+
+    creators = findCreators(cString) #if there is one
+#    creatorRoles = getCreatorRoles(creatorNames) #function should be unnecessary by using getPertinentPersonInfo
+    creatorsToBeWritten = getPertinentPersonInfo(creators)
+    data["Creator 1 first name"] = creatorsToBeWritten
+
 
   def getfigNum(self, s):
   	"Receives caption string. Return figure number, in the form of a string."
@@ -365,42 +414,39 @@ class DataLine:
    	  if docType == "drawing" or docType == "photograph":
         Person["creatorRole"] = "Image creator" #controlled vocabulary word
 
-  def getCreatorRoles(self, l):
-    "Given a list of creators, return a list of each creator's role in the order in which the creators were located in the list."
-    roles = []
-    for Creator in l:
-      l.append(Creator["creatorRole"])
-    return roles
+ # def getCreatorRoles(self, l):
+ #   "Given a list of creators, return a list of each creator's role in the order in which the creators were located in the list."
+ #   roles = []
+ #   for Creator in l:
+ #     l.append(Creator["creatorRole"])
+ #   return roles
 
-  def getMatchesFromString(self, s, d):
-    "Given a string, returns a list of the values for keys recognized in the string, in the order in which they appear in the string."
-    l = []
-
-    for key in d:
-      if key in s:
-        l.append(d[key])
-
-    return l
 
   def writeToFile(self, f):
     "Given a file, writes out its own contents to the files, according to the order in which the fields are written."
     "(Checks order by comparing keys of itself to list of metadata fields.)"
 
     s = ""
+    editorsWritten = false
+    authorsWritten = false
+    creatorsWritten = false
 
     for key in metadataFields:  #follows the order of the metadata fields given! So don't need to worry about that
       if key in self.data:
-        if self.data[key] is list:
-          s = listToString(self.data[key])
-        else:
-          s = self.data[key]
+        #if self.data[key] is list:
+        #  s = listToString(self.data[key])
+        #else:
+        if "editor" in lower(key) and editorsWritten == false:
+          editorsWritten = true
+        if "author" in lower(key) and authorsWritten == false:
+          authorsWritten = true
+        if "creator" in lower(key) and creatorsWritten == false:
+          creatorsWritten = true
 
-      elif "editor" in lower(key):
-        s = listToString(self.data["authorList"])
-      elif "author" in lower(key):
-        s = listToString(self.data["chapterAuthors"])
-      elif "creator" in lower(key):
-        s = listToString(self.data["creators"])
+        s = self.data[key]
+      #need to make it so that string passed in for printing has correct amount of delimiters! Because this will prevent empty cells being written for editors/authors/creators.
+        if ("editor" in lower(key) and editorsWritten == true) or ("author" in lower(key) and authorsWritten == true) or ("creator" in lower(key) and creatorsWritten == true):
+          pass
 
       else:
         s = ""  #means we don't have that information from the caption (not in dataLine's dictionary).
