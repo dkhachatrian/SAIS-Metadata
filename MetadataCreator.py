@@ -9,6 +9,7 @@
 ###############################################
 
 DELIMITER = '\t'	#will be tab-separated CSV.
+PERSONS_MAX - 3 #total number of people of a specific type, e.g. Creator or Author, in a row. Determined by Metadata Fields.txt. To simplify code, all the different types of people have the same max.
 
 
 file mf = open("Metadata Fields.txt", r+)
@@ -165,6 +166,15 @@ def getMatchesFromString(s, d):
       l.append(d[key])
 
   return l
+
+def numberOfInstancesOf(x, s):
+  "Given a string s, returns the number of times x appears in s."
+  n = 0
+
+  for x in s:
+    n++
+
+  return n
 
 ###################################################
 ######### Gaining General Information......########
@@ -426,6 +436,8 @@ class DataLine:
     "Given a file, writes out its own contents to the files, according to the order in which the fields are written."
     "(Checks order by comparing keys of itself to list of metadata fields.)"
 
+    ############  NOTE: If data from a Person ends up needing to be printed in several locations on the metadata, this will have to be changed.
+
     s = ""
     editorsWritten = false
     authorsWritten = false
@@ -443,10 +455,25 @@ class DataLine:
         if "creator" in lower(key) and creatorsWritten == false:
           creatorsWritten = true
 
-        s = self.data[key]
+        t = self.data[key]
       #need to make it so that string passed in for printing has correct amount of delimiters! Because this will prevent empty cells being written for editors/authors/creators.
         if ("editor" in lower(key) and editorsWritten == true) or ("author" in lower(key) and authorsWritten == true) or ("creator" in lower(key) and creatorsWritten == true):
-          pass
+          s = listToString(self.data[key])
+          n = numberOfInstancesOf(DELIMITER, s) #implement
+
+          #in the end, there needs to be (number of pertinent data entries for person, n1)*(number of people to be printed, n2) - 1 because f.write(s+DELIMITER) takes care of one of them.
+          #Each Person has three pieces of information that do not need to be printed, as they are not provided (email, institution) or used internally (title).
+          #So n1 = len(t.info) - 3
+          #n2 = PERSONS_MAX
+          #number of extra DELIMITERs to be printed is n1*n2-(n+1)
+          n1 = len(t.info) - 3
+          xd = n1 * PERSONS_MAX - (n+1)
+
+          for x in xrange[0, xd]:
+            s += DELIMITER
+
+        else:
+          s = t
 
       else:
         s = ""  #means we don't have that information from the caption (not in dataLine's dictionary).
