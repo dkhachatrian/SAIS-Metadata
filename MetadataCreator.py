@@ -18,8 +18,8 @@ excelHeader = ""
 metadataFields = []
 
 for line in mf:
-		metadataFields.append(line[:-1])    #line[:-1] removes '\n' from line
-		excelHeader = excelHeader + line[:-1] + DELIMITER
+	metadataFields.append(line[:-1])    #line[:-1] removes '\n' from line
+	excelHeader = excelHeader + line[:-1] + DELIMITER
 #excelHeader has extra \t at end
 excelHeader = excelHeader[0:-1] #cut off last \t
 #excelHeader does NOT have a \n at the end
@@ -96,7 +96,7 @@ def findPeople(s, r):
 	return people
 
 
-def getWordinQuotes(s):
+def getWordInQuotes(s):
 	"Takes in a string. Returns a string with the contents of the first word or phrase enveloped in double-quotes."
 	"Returns an empty string if no quotes in string."
 	"(For use with files containing lists of interest.)"
@@ -112,15 +112,17 @@ def getWordinQuotes(s):
 	if '\"' in s[i:]: #if another quote in rest of string, get it
 		j = s.rfind('\"')
 
-	if i != 0 and j != 0:
+	if i >= 0 and j > 0:
 		contents = s[i:j]
+
+
 
 	return contents
 
 ##### TEST CASES ###
 ##
 ##extraQuotes = "\"I like pie!\""
-##withoutQuotes = getWordinQuotes(extraQuotes)
+##withoutQuotes = getWordInQuotes(extraQuotes)
 ##noQuotes = "I like pie!"
 ##
 ##print(withoutQuotes)
@@ -286,29 +288,42 @@ docTypeDict = {}
 
 
 def formDictionaryfromFile(d, f):
-	"Takes in a file with lines indicating dictionary values and associated keys. Forms the corresponding dictioary from this file."
-	"(Specifics as to file format is given in comments above.)"
+    "Takes in a file with lines indicating dictionary values and associated keys. Forms the corresponding dictioary from this file."
+    "The values of the dictionary are lists."
+    "(Specifics as to file format is given in comments above.)"
 
-	lines = f.readlines()
+    lines = f.readlines()
+    word = ""
 
-	for line in lines:
-		if '{' in line:
-			for word in line:
-				loc = line.index(word)
-				entry = getWordinQuotes(line[loc:])
+    for line in lines:
+        word = ""
+        
+        words = line.split()
+##        print(words)
 
-				if entry != "":
-					d[entry] = entry #if the caption has the specific word itself, it maps to itself (i.e., a stela is a stela...)
+            
+        for x in range(0,len(words)):
+            s = getWordInQuotes(words[x])
+            if s != "":
+                words[x] = s
 
-		#above if statement should occur before anything else. Use this to check which word to
+#        print(words)
 
-		elif getWordinQuotes(line) in d:  #determine which key will be fleshed out...
-			valueOfInterest = getWordinQuotes(line) #haven't moved from beginning of string yet, so this will grab first "quoted" word, i.e., the key
+        
+##        if '{' in line and len(d) == 0: #'{' is what's used to recognize it's the line with all the keys
+##            for entry in words:
+##                d.setdefault(entry,[]).append(entry) #if the caption has the specific word itself, it maps to itself (i.e., a stela is a stela...)
+##                #setdefault checks to see if entry is in d (it shouldn't be); if not, it makes d[entry] = []. The append function then adds entry to the newly formed list
+##
+##        #above if statement should occur before anything else. Use this to check which word to
+##
+##        
+##
+##        elif '=' in line and len(words) > 0 and words[0] in d.keys():   #'=' is used to recognize it has the words associated to the keys
+##            for x in range(1,len(words)):
+##                d.setdefault(words[0],[]).append(words[x])
+##        
 
-			for word in line[line.index("="):]: #words after "=" are keys leading to proper value
-				d[getWordinQuotes(line[line.index(word)]:)] = valueOfInterest #ugly expression in d[] gives the next word in the series. To be used as a key to point to proper value
-
-			d.pop("", None) #removes any empty strings from dictionary that may have been added due to odd looping. Shouldn't be needed, but just in case.
 
 
 formDictionaryfromFile(objectTypeDict, otl)
@@ -320,6 +335,7 @@ formDictionaryfromFile(docTypeDict, dtl)
 otl.close()
 mtl.close()
 dtl.close()
+
 
 
 ###############################################
