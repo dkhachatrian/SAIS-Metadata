@@ -97,27 +97,34 @@ def findPeople(s, r):
 
 
 def getWordInQuotes(s):
-	"Takes in a string. Returns a string with the contents of the first word or phrase enveloped in double-quotes."
-	"Returns an empty string if no quotes in string."
-	"(For use with files containing lists of interest.)"
-	"For example, \"I like pie!\" will return the string literal 'I like pie!' (with no '' surrounding it)."
+    "Takes in a string. Returns a string with the contents of the first word or phrase enveloped in double-quotes."
+    "Returns an empty string if no quotes in string."
+    "(For use with files containing lists of interest.)"
+    "For example, \"I like pie!\" will return the string literal 'I like pie!' (with no '' surrounding it)."
 
-	contents = ""
-	i = j = 0
+    contents = ""
+    i = j = 0
 
-	if '\"' in s:
-		i = s.find('\"')
-		i += 1 #goes to right after the first quote
+    if '\"' in s:
+        i = s.find('\"')
+        i += 1 #goes to right after the first quote
 
-	if '\"' in s[i:]: #if another quote in rest of string, get it
-		j = s.rfind('\"')
+    if '\"' in s[i:]: #if another quote in rest of string, get it
+        j = s.rfind('\"')
+        if j == -1: #prevent backslicing if not located
+            j = 0
 
-	if i >= 0 and j > 0:
-		contents = s[i:j]
+    if i >= 0 and j > 0:
+        contents = s[i:j]
 
+#    print(i)
+#    print(j)
+#    print(contents)
 
+    return contents
 
-	return contents
+test = "="
+#print(getWordInQuotes(test))
 
 ##### TEST CASES ###
 ##
@@ -299,36 +306,47 @@ def formDictionaryfromFile(d, f):
         word = ""
         
         words = line.split()
-##        print(words)
-
-            
-        for x in range(0,len(words)):
-            s = getWordInQuotes(words[x])
-            if s != "":
-                words[x] = s
-
 #        print(words)
+        
+        x = 0
+        n = len(words)
+            
+        while x < n:
+#            print(x)
+            s = getWordInQuotes(words[x])
+            if s == "":     #if returns empty string, no "" in word, not one of the desired words
+                words.remove(words[x])
+                n = len(words) #to update the length of list, equivalent to " n -= 1 "
+            else:
+                words[x] = s #otherwise update with non-quoted word
+                x += 1
+
+        #print(words)
 
         
-##        if '{' in line and len(d) == 0: #'{' is what's used to recognize it's the line with all the keys
-##            for entry in words:
-##                d.setdefault(entry,[]).append(entry) #if the caption has the specific word itself, it maps to itself (i.e., a stela is a stela...)
-##                #setdefault checks to see if entry is in d (it shouldn't be); if not, it makes d[entry] = []. The append function then adds entry to the newly formed list
-##
-##        #above if statement should occur before anything else. Use this to check which word to
-##
-##        
-##
-##        elif '=' in line and len(words) > 0 and words[0] in d.keys():   #'=' is used to recognize it has the words associated to the keys
-##            for x in range(1,len(words)):
-##                d.setdefault(words[0],[]).append(words[x])
-##        
+        if '{' in line and len(d) == 0: #'{' is what's used to recognize it's the line with all the keys
+            for entry in words:
+                d.setdefault(entry,[]).append(entry) #if the caption has the specific word itself, it maps to itself (i.e., a stela is a stela...)
+                #setdefault checks to see if entry is in d (it shouldn't be); if not, it makes d[entry] = []. The append function then adds entry to the newly formed list
+
+        #above if statement should occur before anything else. Use this to check which word to
+
+        
+
+        elif '=' in line and len(words) > 0 and words[0] in d.keys():   #'=' is used to recognize it has the words associated to the keys
+            for x in range(1,len(words)):
+                d.setdefault(words[0],[]).append(words[x])
+        
 
 
 
 formDictionaryfromFile(objectTypeDict, otl)
 formDictionaryfromFile(materialTypeDict, mtl)
 formDictionaryfromFile(docTypeDict, dtl)
+
+print(objectTypeDict)
+print(materialTypeDict)
+print(docTypeDict)
 
 #should have dictionaries I want. Don't need lists anymore.
 
