@@ -1,43 +1,46 @@
 #person to be used to determine first and last name
 class Person():
-	"A Person has a name, a role in the book (e.g. author, editor, creator), and possibly an email and/or institution."
+        "A Person has a name, a role in the book (e.g. author, editor, creator), and possibly an email and/or institution."
 
-	def __init__(self, name = "", title = "", email = "", institution = ""): #considering we only have informaion on the names of the authors, others default to ""
-		self.info = {}
+        def __init__(self, name = "", title = "", email = "", institution = ""): #considering we only have informaion on the names of the authors, others default to ""
+                self.info = {}
 
-		self.info["firstName"] = self.getFirstName(name)
-		self.info["lastName"] = self.getLastName(name)
-		self.info["title"] = title #title says whether the Person is an author, creator, editor, etc.
-		self.info["email"] = email
-		self.info["institution"] = institution
-		#self.name = name
-		#self.email = email
-		#self.inst = institution
+                self.info["firstName"] = self.getFirstName(name)
+                self.info["lastName"] = self.getLastName(name)
+                self.info["title"] = title #title says whether the Person is an author, creator, editor, etc.
+                self.info["email"] = email
+                self.info["institution"] = institution
+                #self.name = name
+                #self.email = email
+                #self.inst = institution
 
-	def getLastName(self, name):  #last name is rest of name
+        def getLastName(self, name):  #last name is rest of name
                 n = len(name.split()[0]) + len(' ') #everything that we need to skip to get last name
                 return name[n:]
                 
                 ###Commented out code would have middle initials in the first name, only last word in last name
-##		x = 0
-##		while name[x] != ' ':
-##			x -= 1
-##		x += 1 #go back to after ' '
-##		return name[x:]#returns slice from after last ' ' to end, i.e., last name
+##              x = 0
+##              while name[x] != ' ':
+##                      x -= 1
+##              x += 1 #go back to after ' '
+##              return name[x:]#returns slice from after last ' ' to end, i.e., last name
 
-	def getFirstName(self, name): #first name is first word in name
+        def getFirstName(self, name): #first name is first word in name
                 return name.split()[0]
-#		return (name[:name.find(self.getLastName(name))])[0:-1] #slices out the last space after the first name but before the LastName
+#               return (name[:name.find(self.getLastName(name))])[0:-1] #slices out the last space after the first name but before the LastName
 
-	def display(self):  #for debugging purposes. While printing to file, will compare metadata field term with dictionary keys before printing (makes Creator class work better)
-		#print(info.values()) #keys not important for metadata list
-		print(self.info)
+        def display(self):  #for debugging purposes. While printing to file, will compare metadata field term with dictionary keys before printing (makes Creator class work better)
+                #print(info.values()) #keys not important for metadata list
+                print(self.info)
+
+        def displayName(self):
+                print(self.info["firstName"] + ' ' + self.info["lastName"])
 
 ### TEST CASES ###
-#
-#dude = Person("John Doe", "author")
-#
-#dude.display()
+
+##dude = Person("John H. Doe", "author")
+##
+##dude.display()
 
 
 
@@ -46,36 +49,56 @@ def findPeople(s, r):
 
         words = s.split() #split the string at spaces
         n = len(words)
+        x = 0
 
-        for x in range(n): #for each word in the list
-                if !(words[x][0].isupper()):#if the word is not capitalized
-                        words.remove(word)#remove it from the list
+        while x < n: #for each word in the list
+                if not (words[x])[0].isupper():#if the word is not capitalized
+                        words.remove(words[x])#remove it from the list
                         x -= 1 #check the new word in the x'th position
                         n -= 1 #update length of array
                 elif ',' in words[x]:#if word has comma attached to it (and hasn't been removed from the list already)
                         words[x] = words[x][:-1]#slice it out (ought to be at the end of the word)
-                elif '.' in words[x] and words[x] > 2: #if word has period and longer than two chars, it's not a middle initial, it's at the end of a sentence. Slice out '.'
+                elif '.' in words[x] and len(words[x]) > 2: #if word has period and longer than two chars, it's not a middle initial, it's at the end of a sentence. Slice out '.'
                         words[x] = words[x][:-1]
+                x += 1
 
         tempName = ""
         p = 0
         i = 0
         pList = []
 
+        #print(words)
+
         while i + p + 1 < len(words): #going through the list
                 p = 0
-                
-                while s.find(words[i+p]) + len(words[i+p]) == s.find(words[i+p+1]): #while the next capitalized word in the list is directly after the word we're looking at right now
+                tempName = ""
+##                print("p = " + str(p))
+##                print("i = " + str(i))
+##                print("Are words consecutive? " + str((s.find(words[i+p]) + len(words[i+p]) + len(' ') == s.find(words[i+p+1]))))
+##                print("First word checked is "+ str(words[i+p]))
+##                print("Index of first word checked is " + str(s.find(words[i+p])))
+##                print("Length of first word checked is " + str(len(words[i+p])))
+##                print("Possible consecutive word is " + str(words[i+p+1]))
+##                print("Index of possible consecutive word is " + str(s.find(words[i+p+1])))                
+##                
+                while (i+p+1 < len(words)) and (s.find(words[i+p]) + len(words[i+p]) + len (' ') == s.find(words[i+p+1])): #while the next capitalized word in the list is directly after the word we're looking at right now
                         p += 1 #check the next name; keep track of how many are consecutive
 
+
+                
                 if p > 0: #if there are more than zero words after the word of interest that come consecutively
-                        for x in range(p + 1): #concatenate them (up to and including the value p (hence p+1)
-                                tempName += words[i+x]
+                        for x in range(p): #concatenate them (up to p
+                                tempName = tempName + words[i+x] + ' '
+                        tempName += words[i+p] #for p, do not add space at the end
+                        
 
                 if tempName != "":
-                        person = Person(tempName, r)
-                        pList.append(person)
-                        
+                        person = Person(tempName, r) #make the person
+                        pList.append(person) #add person to list
+
+                i = i + p + 1 #move the index down the list to be after the consecutive words (or even if they're not consecutive)
+
+                
                 
                 ###NOTE: AS IT STANDS, will spit out site names and other consecutive capitalized strings of words as "names."
                 ## Will be handing off generated list to Deidre, who will use it to make the list of site names.
@@ -85,112 +108,24 @@ def findPeople(s, r):
 
         return pList
 
-##        tempName = ""
-##        p = -1
+
+#result = findPeople("William H. Isbell", "creator")
+#                    01234567891111111
+#                              0123456
+
+##result = findPeople("""
+##2.17	One of the four personages depicted on the Gateway of the Kalasasaya blowing a trumpet
+##and holding a severed human head. Redrawn by Stanislava Chávez
+##from Posnansky (1945, Vol. I:Plate XXXIX.3).""", "editor")
+
+##result = findPeople("""2.18	a) Examples from the Gatewayof the Kalasasaya showing the conch shell
+##associated with other appendages, in one case bird and in the other “fish,” in the crowns of profile personages.
+##Redrawn by Stanislava Chávez from Posnansky (1945, Vol. I:Plate XLIII.2-3), b) One of two winged personages on
+##a Provincial Pucara textile carrying what appears to be a
+##conch shell. Drawn by Stanislava Chávez from a color photograph of the textile provided by William Isbell.""", "creator")
 ##
-##        for i in range(n - 1):#for the n'th word in the list
-##        
-##                if s.find(words[i]) + len(words[i]) == s.find(words[i+1]): #if the (n+1)'th word is directly after the n'th word in the string
-##                        if len(words[i+1]) == 2 and words[i+1][1] == '.': #if the n+1'th word is two chars long and ends in '.' (i.e., is a middle initial)
-##                                if i + 2 < n and s.find(words[i+1]) + len(words[i+1]) == s.find(words[i+2]): #if the n+2'th word is directly after the n+1'th word
-##                                        p = 2 #store entries n and n+1 and n+2 as a single name
-##                        else: #else if there's a period, means at the end of a sentence, not important, slice out
-##                                #if the role r is "editor" or "author"
-##                                        #store entries n and n+1 as a single name
-##                                #if the role is "creator"
-##                                        #if the entries from the list personKeyPhrases comes before entry n
-##                                                #store entries n and n+1 as a single name
-
-        #for each name that was taken
-                #put Person(name, r) in a list people
-
-        #return people
-
-        
-
-
-
-
-
-
-
-##
-##        #working with the lines from the table of contents (i.e., only the names and possibly commas and "and"'s
-##
-##        people = []
-##        wordsComma = s.split(',')
-##        wordsAnd = s.split(" and ")
-##        names = []
-##
-##        for word in wordsAnd:
-##                names.extend(word.split(','))
-##
-##        n = 0
-##        for word in names:
-##                if word == "":
-##                        n += 1
-##
-##        for x in range(0,n):
-##                names.remove("")
-##
-##        for name in names:
-##                person = Person(name, r) #Error! Need person's role!
-##                people.append(person)
-##                        
-##        return people
-##
-##
-
-
-
-
-
-
-##        people = []
-##        name = ""
-##        words = s.split()       #splits at ' '
-##        wordsCap = []
-##
-##        for word in words:
-##                if word[0].isupper():
-##                        if '.' in word and len(word) > 2:
-##                                wordsCap.append(word[:-1])      #if not a middle initial, remove period
-##                        else:
-##                                wordsCap.append(word)
-##                
-##
-##
-##        
-##        wordsComma = s.split(',')
-##        wordsAnd = s.split(" and ")
-##        
-##
-##        print(wordsComma)
-##        
-##
-##
-
-
-                 
-##
-##        for word in s:
-##                if (word[0].isupper() and ',' in word) or word is "and": #if it's part of a name, the first letter is capitalized
-##                        if ',' in word: #if word has comma
-##                                name += word[:-1] #add everything except comma
-##                        #otherwise, if word is "and", name already has entire name of Person
-##                        person = Person(name, r) #make the Person
-##                        people.append(person) #add him to list of editors
-##                        name = "" #reset temporary name storage
-##                else:
-##                        name += word #add parts of names otherwise
-
-##        return people
-
-
-result = findPeople("William H. Isbell", "creator")
-
-for person in result:
-        person.display()        
+##for person in result:
+##        person.displayName()        
 
 
 
