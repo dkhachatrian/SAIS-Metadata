@@ -8,32 +8,32 @@
 ######### A bunch of declarations...###########
 ###############################################
 
+#Worth noting: when writing to file, will need to convert strings to bytes using bytes(string, encoding scheme)
+
 DELIMITER = '\t'  #will be tab-separated CSV.
-PERSONS_MAX = 3 #total number of people of a specific type, e.g. Creator or Author, in a row. Determined by Metadata Fields.txt. To simplify code, all the different types of people have the same max.
-
-
-mf = open("Metadata Fields.txt", 'r')
+PERSONS_MAX = 10 #total number of people of a specific type, e.g. Creator or Author, in a row. Determined by Metadata Fields.txt. To simplify code, all the different types of people have the same max.
 
 excelHeader = ""
 metadataFields = []
 
-for line in mf:
-	metadataFields.append(line[:-1])    #line[:-1] removes '\n' from line
-	excelHeader = excelHeader + line[:-1] + DELIMITER
-#excelHeader has extra \t at end
-excelHeader = excelHeader[0:-1] #cut off last \t
-#excelHeader does NOT have a \n at the end
+with open("Metadata Fields.txt", 'r', encoding = 'utf8') as mf:
+        for line in mf:
+                metadataFields.append(line[:-1])    #line[:-1] removes '\n' from line
+                excelHeader = excelHeader + line[:-1] + DELIMITER
+        #excelHeader has extra \t at end
+        excelHeader = excelHeader[0:-1] #cut off last \t
+        #excelHeader does NOT have a \n at the end
 
-mf.close() #done with getting metadata fields from file
+#done with getting metadata fields from file
 
 ### DEBUGGING ###
 #print(metadataFields)
 #print(excelHeader)
 
 
-wordsOfInterest = {} #each word of interest will be associated via a dictionary to which field the word provides information for
+#wordsOfInterest = {} #each word of interest will be associated via a dictionary to which field the word provides information for
 #wordsOfInterest.update(["foo", "bar"], 42) would create two keys, foo and bar, which both point to 42
-fieldDict = {"object" : objectType, "material" : materialType, "documentation" : docType, "creator" : creatorName} #will include the above variables as 
+#fieldDict = {"object" : objectType, "material" : materialType, "documentation" : docType, "creator" : creatorName} #will include the above variables as 
 
 
 
@@ -48,8 +48,8 @@ class Person():
         def __init__(self, name = "", title = "", email = "", institution = ""): #considering we only have informaion on the names of the authors, others default to ""
                 self.info = {}
 
-                self.info["firstName"] = self.getFirstName(name)
-                self.info["lastName"] = self.getLastName(name)
+                self.info["firstName"] = self.getMyFirstName(name)
+                self.info["lastName"] = self.getMyLastName(name)
                 self.info["title"] = title #title says whether the Person is an author, creator, editor, etc.
                 self.info["email"] = email
                 self.info["institution"] = institution
@@ -57,7 +57,7 @@ class Person():
                 #self.email = email
                 #self.inst = institution
 
-        def getLastName(self, name):  #last name is rest of name
+        def getMyLastName(self, name):  #last name is rest of name
                 n = len(name.split()[0]) + len(' ') #everything that we need to skip to get last name
                 return name[n:]
                 
@@ -68,13 +68,40 @@ class Person():
 ##              x += 1 #go back to after ' '
 ##              return name[x:]#returns slice from after last ' ' to end, i.e., last name
 
-        def getFirstName(self, name): #first name is first word in name
+        def getMyFirstName(self, name): #first name is first word in name
                 return name.split()[0]
 #               return (name[:name.find(self.getLastName(name))])[0:-1] #slices out the last space after the first name but before the LastName
 
         def display(self):  #for debugging purposes. While printing to file, will compare metadata field term with dictionary keys before printing (makes Creator class work better)
                 #print(info.values()) #keys not important for metadata list
                 print(self.info)
+
+        def getFirstName(self):
+                return self.info["firstName"]
+
+        def getLastName(self):
+                return self.info["lastName"]
+
+        def getTitle(self):
+                return self.info["title"]
+
+        def addCreatorRole(self, s):
+                if self.info["title"] == "creator":
+                        self.info["creatorRole"] = s
+                        return 0
+                else:
+                        return -1
+
+        def hasCreatorRole(self):
+                if "creatorRole" in self.info.keys():
+                        return True
+                else:
+                        return False
+
+        def getCreatorRole(self):
+                if self.hasCreatorRole:
+                        return self.info["creatorRole"]
+                
 
         def fullName(self):
                 return self.info["firstName"] + ' ' + self.info["lastName"]
@@ -205,7 +232,7 @@ def getWordInQuotes(s):
 
     return contents
 
-test = "="
+#test = "="
 #print(getWordInQuotes(test))
 
 ##### TEST CASES ###
@@ -241,24 +268,25 @@ def writeCSVHeaderToFile(l, f):
 	"Inserts newline at the end of printing all the headers."
 
 	for entry in l:
-		f.write(entry + DELIMITER)
+		f.write(bytes(entry, 'utf8') + bytes(DELIMITER, 'utf8'))
 
-	f.seek(-1, 1)
-	f.write('\n')
+	f.seek(-1, 1)   #go back one character from the current position (i.e., to the last delimiter written)
+	f.write(bytes('\n', 'utf8'))
 
-def getPertinentPersonInfo(d):
-	"Given a dictionary containing a Person's data, return a string necessary for writing to CSV (first and last name, role if a creator)."
-	"Will not have delimiter at end of string."
-	"(ORDER OF FIELDS IS HARDWIRED INTO CODE. Need to change if order of metadata fields changes.)"
+def getPertinentPersonInfo(l):
+        "Given a dictionary containing a Person's data, return a string necessary for writing to CSV (first and last name, role if a creator)."
+        "Will not have delimiter at end of string."
+        "(ORDER OF FIELDS IS HARDWIRED INTO CODE. Need to change if order of metadata fields changes.)"
 
-	s = ""
+        s = ""
+        
+        for person in l:
+                s += person.getFirstName() + DELIMITER + person.getLastName()
 
-	s = d["firstName"] + DELIMITER + d["lastName"]
+                if person.hasCreatorRole():
+                        s += DELIMITER + person.getCreatorRole()
 
-	if d["title"] == "creator":
-		s += DELIMITER + d["creatorRole"]
-
-	return s
+        return s
 	
 def getMatchesFromString(s, d):
 	"Given a string, returns a list of the values for keys recognized in the string, in the order in which they appear in the string."
@@ -386,10 +414,6 @@ with open("Table of Contents.txt", 'r', encoding = 'utf8') as toc:
 #followed by words that map to this first word, also in quotes.
 #Each newline corresponds to a new masterword being mapped.
 
-otl = open("objectType_list.txt", 'r') #object type list
-mtl = open("materialType_list.txt", 'r') #material type list
-dtl = open("docType_list.txt", 'r') #document type list
-
 objectTypeDict = {}
 materialTypeDict = {}
 docTypeDict = {}
@@ -440,21 +464,19 @@ def formDictionaryfromFile(d, f):
         
 
 
+with open("objectType_list.txt", 'r', encoding = 'iso-8859-1') as otl: #object type list
+        formDictionaryfromFile(objectTypeDict, otl)
+with open("materialType_list.txt", 'r', encoding = 'iso-8859-1') as mtl: #material type list
+        formDictionaryfromFile(materialTypeDict, mtl)
+with open("docType_list.txt", 'r', encoding = 'iso-8859-1') as dtl: #document type list
+        formDictionaryfromFile(docTypeDict, dtl)
 
-formDictionaryfromFile(objectTypeDict, otl)
-formDictionaryfromFile(materialTypeDict, mtl)
-formDictionaryfromFile(docTypeDict, dtl)
 
-print(objectTypeDict)
-print(materialTypeDict)
-print(docTypeDict)
+#print(objectTypeDict)
+#print(materialTypeDict)
+#print(docTypeDict)
 
 #should have dictionaries I want. Don't need lists anymore.
-
-otl.close()
-mtl.close()
-dtl.close()
-
 
 
 ###############################################
@@ -479,7 +501,7 @@ class DataLine:
 		data["Book Title"] = bookTitle
 		#bookTitle is variable found in "Getting information from Table of Contents" section
 		data["Year"] = ""
-		data["Description"] - ""
+		data["Description"] = ""
 
 
 
@@ -497,7 +519,7 @@ class DataLine:
 		###   METADATA TERMS THAT VARY BY CHAPTER  ###
 
 		#useful for definition of functions
-		chapterNumber = int(figNum[0])
+		chapterNumber = int(captionString[0]) #first char of each caption is chapter number
 		data["Chapter"] = chapterNumber
 		data["Chapter Title"] = chapterTitles[chapterNumber - 1] #chapter title i is stored in the (i-1)'th position in the chapterTitles lists.
 		#chaperTitles is variable found in "Getting information from Table of Contents" section
@@ -521,7 +543,7 @@ class DataLine:
 		copyright = "" #no figures have copyright yet
 		data["Copyright"] = copyright
 
-		objectTypes = getMatchesFromString(cString, objectTypeDict)
+		objectTypes = getMatchesFromString(cString, objectTypeDict) #for figures with several objects, separated within the cell by a semicolon ';'
 		data["Object type"] = listToString(objectTypes, ';')
 
 		materialTypes = getMatchesFromString(cString, materialTypeDict) #similarly determined to objectType
@@ -578,11 +600,11 @@ class DataLine:
 							#should break out of loop and function should finish by this point, because len(creatorNames) != 0
 
 		#found creator by this point. Time to figure out his role.
-		for Person in creatorNames:
-			Person["creatorRole"] = ""  #give it a field in the dictionary, regardless of whether it is known. For printing to CSV
+		for person in creatorNames:
+			person.addCreatorRole("")  #give it a field in the dictionary, regardless of whether it is known. For printing to CSV
 
 			if docType == "drawing" or docType == "photograph":
-				Person["creatorRole"] = "Image creator" #controlled vocabulary word
+				person.addCreatorRole("Image creator") #controlled vocabulary word
 
  # def getCreatorRoles(self, l):
  #   "Given a list of creators, return a list of each creator's role in the order in which the creators were located in the list."
@@ -638,7 +660,9 @@ class DataLine:
 			else:
 				s = ""  #means we don't have that information from the caption (not in dataLine's dictionary).
 
-				f.write(s + DELIMITER)  #after going through all of them, will have extra DELIMITER at end, need to change to newline
+			f.write(bytes(s, 'utf8') + DELIMITER)  #write to file
+
+		#after going through all of them, will have extra DELIMITER at end, need to change to newline
 		
 		#after printing all the appropriate values
 		f.seek(-1, 1) #goes one byte, i.e. one character, to the left from the current position (which should be the current end of the file)
@@ -695,22 +719,13 @@ class DataLine:
 
 
 
+with open("SAIS Metadata.csv", 'wb') as o: #creates the .csv file to which we will be writing. b = "binary mode" enables seeking from relative cursor positions
+        writeCSVHeaderToFile(metadataFields, o)
 
+        with open("SAIS Captions.txt", 'rb') as cl: #cl = captionList. Read-only
+                for line in cl:
+                        lineOfData  = DataLine(line)
+                        writeToFile(lineOfData, o)
 
-
-
-
-cl = open("SAIS Figure Caption List.txt", 'r') #cl = captionList. Read-only
-o = open("SAIS Metadata.csv", 'w') #creates the .csv file to which we will be writing
-
-writeCSVHeaderToFile(metadataFields, o)
-
-for line in cl:
-	lineOfData  = DataLine(line)
-	writeToFile(lineOfData, o)
-
-o.seek(-1, 2) #goes right before very last character in file
-o.truncate() (#removes final unnecessary newline character)
-
-cl.close()
-o.close()
+#        o.seek(-1, 2) #goes right before very last character in file
+#        o.truncate() (#removes final unnecessary newline character)
