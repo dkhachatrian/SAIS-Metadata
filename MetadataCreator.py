@@ -10,7 +10,8 @@
 
 #Worth noting: when writing to file, will need to convert strings to bytes using bytes(string, encoding scheme)
 
-DELIMITER = '\t'  #will be tab-separated CSV.
+DELIMITER = ','  #will be comma-separated CSV.
+IN_CELL_DELIMITER = ';' #when phrases need to be differentiated within a cell in the CSV
 PERSONS_MAX = 10 #total number of people of a specific type, e.g. Creator or Author, in a row. Determined by Metadata Fields.txt. To simplify code, all the different types of people have the same max.
 
 excelHeader = ""
@@ -25,7 +26,7 @@ with open("Metadata Fields.txt", 'r', encoding = 'utf8') as mf:
         #excelHeader does NOT have a \n at the end
 
 #done with getting metadata fields from file
-
+print(excelHeader)
 ### DEBUGGING ###
 #print(metadataFields)
 #print(excelHeader)
@@ -247,31 +248,31 @@ def getWordInQuotes(s):
 
 
 def listToString(l, d):
-	"Given a list l, returns a string with the values of the list separated by the delimiter passed in, d."
-	"(Will not have delimiter at the end of the string.)"
-	"If passed in a list of Persons, the function will call getPertinentPersonInfo and use its result in creating the string it returns."
-	s = ""
+        "Given a list l, returns a string with the values of the list separated by the delimiter passed in, d."
+        "(Will not have delimiter at the end of the string.)"
+        "If passed in a list of Persons, the function will call getPertinentPersonInfo and use its result in creating the string it returns."
+        s = ""
 
-	for entry in l:
-		if entry is str:
-			s = s + entry + d
-		elif entry is Person: #does this work? if not, fix!
-			s = s + getPertinentPersonInfo(entry) + d
+        for entry in l:
+                if entry is str:
+                        s = s + entry + d
+                elif entry is Person: #does this work? if not, fix!
+                        s = s + getPertinentPersonInfo(entry) + d
 
-	s = s[:-1] #cuts off last delimiter
+        s = s[:-1] #cuts off last delimiter
 
-	return s
+        return s
 
 
 def writeCSVHeaderToFile(l, f):
-	"Given a list of metadata headers in the proper order, writes them to file in the order given, separated by the appropriate delimiter."
-	"Inserts newline at the end of printing all the headers."
+        "Given a list of metadata headers in the proper order, writes them to file in the order given, separated by the appropriate delimiter."
+        "Inserts newline at the end of printing all the headers."
 
-	for entry in l:
-		f.write(bytes(entry, 'utf8') + bytes(DELIMITER, 'utf8'))
+        for entry in l:
+                f.write(bytes(entry, 'utf8') + bytes(DELIMITER, 'utf8'))
 
-	f.seek(-1, 1)   #go back one character from the current position (i.e., to the last delimiter written)
-	f.write(bytes('\n', 'utf8'))
+        f.seek(-1, 1)   #go back one character from the current position (i.e., to the last delimiter written)
+        f.write(bytes('\n', 'utf8'))
 
 def getPertinentPersonInfo(l):
         "Given a dictionary containing a Person's data, return a string necessary for writing to CSV (first and last name, role if a creator)."
@@ -287,25 +288,26 @@ def getPertinentPersonInfo(l):
                         s += DELIMITER + person.getCreatorRole()
 
         return s
-	
+        
 def getMatchesFromString(s, d):
-	"Given a string, returns a list of the values for keys recognized in the string, in the order in which they appear in the string."
-	l = []
+        "Given a string, returns a list of the values for keys recognized in the string, in the order in which they appear in the string."
+        l = []
 
-	for key in d:
-		if key in s:
-			l.append(d[key])
+        for key in d:
+                if key in s:
+                        l.append(d[key])
 
-	return l
+        print("getMatchesFromString returned " + str(l))
+        return l
 
 def numberOfInstancesOf(x, s):
-	"Given a string s, returns the number of times x appears in s."
-	n = 0
+        "Given a string s, returns the number of times x appears in s."
+        n = 0
 
-	for x in s:
-		n += 1
+        for x in s:
+                n += 1
 
-	return n
+        return n
 
 ###################################################
 ######### Gaining General Information......########
@@ -340,20 +342,20 @@ with open("Table of Contents.txt", 'r', encoding = 'utf8') as toc:
                         x = line.find("Title: ")
 
                         if x != -1: 
-                                x += len("Title: ")	#puts x after "Title: "
-                                bookTitle = line[x:]	#everything after the denoter
+                                x += len("Title: ")     #puts x after "Title: "
+                                bookTitle = line[x:]    #everything after the denoter
                                 continue
 
                 #find the editors...
                 if editors  == [] and ", editors" in line:
                         x = line.find(", editors")
-                        s = line[0:x]	#just the two names in s
+                        s = line[0:x]   #just the two names in s
                         names = findPeople(s, "editor")
 
 ##                        for person in names:
 ##                                person.display()
                                 
-                        editors = list(names)	#editors not associated with any particular chapter, so can just be a list
+                        editors = list(names)   #editors not associated with any particular chapter, so can just be a list
 
 
 
@@ -413,6 +415,8 @@ with open("Table of Contents.txt", 'r', encoding = 'utf8') as toc:
 #Associations are denoted in the following way: the entry from the master list is written first, followed by an equals sign "=",
 #followed by words that map to this first word, also in quotes.
 #Each newline corresponds to a new masterword being mapped.
+#If there is a line that may cause confusion or otherwise should not be parsed,
+#place at least two backslashes ('\') at the front of the line.
 
 objectTypeDict = {}
 materialTypeDict = {}
@@ -428,6 +432,8 @@ def formDictionaryfromFile(d, f):
     word = ""
 
     for line in lines:
+        if len(line) >= 2 and line[0:2] == "\\":
+                continue #allow to pass lines if necessary
         word = ""
         
         words = line.split()
@@ -487,124 +493,140 @@ with open("docType_list.txt", 'r', encoding = 'iso-8859-1') as dtl: #document ty
 #TODO: may want to create a "dataLine" object to hold all these strings and have a print function for it specifically?
 
 class DataLine:
-	"Takes in a line from the captions list as a string upon initialization. Parses string for information relevant for metadata input and stores the data in a dictionary."
-	#will hold data in a dictionary
-	def __init__(self, captionString = ""):
-		data = {} #will hold data in dictionary
+        "Takes in a line from the captions list as a string upon initialization. Parses string for information relevant for metadata input and stores the data in a dictionary."
+        #will hold data in a dictionary
+        def __init__(self, captionString = ""):
+                self.data = {} #will hold data in dictionary
 
-		#keys of 'data' are chosen to match with the keys placed in metadataFields, to handle order of printing.
-		#For cases where there may be multiple fields for information held in one object, e.g. the names of the editors or creators (which are held in a list),
-		#the key is named after the after the first metadata field pertaining to them (e.g. "Editor 1 First Name"), and the key points to a string that can be directly written to file.
+                #keys of 'data' are chosen to match with the keys placed in metadataFields, to handle order of printing.
+                #For cases where there may be multiple fields for information held in one object, e.g. the names of the editors or creators (which are held in a list),
+                #the key is named after the after the first metadata field pertaining to them (e.g. "Editor 1 First Name"), and the key points to a string that can be directly written to file.
 
-		###   UNIVERSAL METADATA TERMS  ###
+                ###   UNIVERSAL METADATA TERMS  ###
 
-		data["Book Title"] = bookTitle
-		#bookTitle is variable found in "Getting information from Table of Contents" section
-		data["Year"] = ""
-		data["Description"] = ""
-
-
-
-		editorsToBeWritten = getPertinentPersonInfo(editors) 
-		#editors is variable found in "Getting information from Table of Contents" section
-
-		data["Editor 1 first name"] = editorsToBeWritten
-
-		#above information will hopefully be read by table of contents parsing. Meaning I wouldn't need to explicitly state them here.
-		data["Publisher"] = "Cotsen Institute of Archaeology Press"
-		data["Publisher location"] = "Los Angeles, CA"
-		data["DOI"] = ""
-		data["ISBN"] = ""
-
-		###   METADATA TERMS THAT VARY BY CHAPTER  ###
-
-		#useful for definition of functions
-		chapterNumber = int(captionString[0]) #first char of each caption is chapter number
-		data["Chapter"] = chapterNumber
-		data["Chapter Title"] = chapterTitles[chapterNumber - 1] #chapter title i is stored in the (i-1)'th position in the chapterTitles lists.
-		#chaperTitles is variable found in "Getting information from Table of Contents" section
+                self.data["Book Title"] = bookTitle
+                #bookTitle is variable found in "Getting information from Table of Contents" section
+                self.data["Year"] = ""
+                self.data["Description"] = ""
 
 
-		chapterAuthors = authors[chapterNumber] #returns a list of 1 or more authors, if implemented properly.
-		#authors is variable found in "Getting information from Table of Contents" section
-		data["Author 1 first name"] = listToString(chapterAuthors, DELIMITER) #listToString will call "getPertinentPersonInfo" function if list is composed of Persons.
+
+                editorsToBeWritten = getPertinentPersonInfo(editors) 
+                #editors is variable found in "Getting information from Table of Contents" section
+
+                self.data["Editor 1 first name"] = editorsToBeWritten
+
+                #above information will hopefully be read by table of contents parsing. Meaning I wouldn't need to explicitly state them here.
+                self.data["Publisher"] = "Cotsen Institute of Archaeology Press"
+                self.data["Publisher location"] = "Los Angeles, CA"
+                self.data["DOI"] = ""
+                self.data["ISBN"] = ""
+
+                ###   METADATA TERMS THAT VARY BY CHAPTER  ###
+
+                #useful for definition of functions
+                chapterNumber = int(captionString[0]) #first char of each caption is chapter number
+                self.data["Chapter"] = chapterNumber
+#               print(captionString)
+#               print(str(chapterNumber))
+#               print(chapterTitles)
+#               print(len(chapterTitles))
+                self.data["Chapter Title"] = chapterTitles[chapterNumber - 1] #chapter title i is stored in the (i-1)'th position in the chapterTitles lists.
+                #chaperTitles is variable found in "Getting information from Table of Contents" section
+#                print(authors['2'][0])
+#                print(authors)
+                chapterAuthors = authors[str(chapterNumber)] #returns a list of 1 or more authors, if implemented properly.
+                #authors is variable found in "Getting information from Table of Contents" section
+                self.data["Author 1 first name"] = listToString(chapterAuthors, DELIMITER) #listToString will call "getPertinentPersonInfo" function if list is composed of Persons.
 
 
-		###   METADATA TERMS THAT VARY BY FIGURE  ###
+                ###   METADATA TERMS THAT VARY BY FIGURE  ###
 
-		cString = captionString
+                cString = captionString
 
-		figNum = getFigNum(cString)
-		data["Figure number"] = figNum
+                figNum = self.getFigNum(cString)
+                self.data["Figure number"] = figNum
 
-		caption = getCaption(cString)
-		data["Caption"] = caption
+                caption = self.getCaption(cString)
+                self.data["Caption"] = caption
 
-		copyright = "" #no figures have copyright yet
-		data["Copyright"] = copyright
+                copyright = "" #no figures have copyright yet
+                self.data["Copyright"] = copyright
 
-		objectTypes = getMatchesFromString(cString, objectTypeDict) #for figures with several objects, separated within the cell by a semicolon ';'
-		data["Object type"] = listToString(objectTypes, ';')
+                objectTypes = getMatchesFromString(cString, objectTypeDict) #for figures with several objects, separated within the cell by a semicolon ';'
+                self.data["Object type"] = listToString(objectTypes, ';')
 
-		materialTypes = getMatchesFromString(cString, materialTypeDict) #similarly determined to objectType
-		data["Material type"] = listToString(materialTypes, ';')
+                materialTypes = getMatchesFromString(cString, materialTypeDict) #similarly determined to objectType
+                self.data["Material type"] = listToString(materialTypes, ';')
 
-		docTypes = getMatchesFromString(cString, docTypeDict) #similarly determined to above two
-		data["Documentation type"] = listToString(docTypes, ';')
+                docTypes = getMatchesFromString(cString, docTypeDict) #similarly determined to above two
+                print("DocTypes = " + str(docTypes))
+                self.data["Documentation type"] = listToString(docTypes, ';')
 
-		#Special note: the documentation type of "photograph" is assumed unless one of the other documentation types is evident from the caption text.
+                #Special note: the documentation type of "photograph" is assumed unless one of the other documentation types is evident from the caption text.
 
-		creators = findCreators(cString) #if there is one
+                print("Before findCreators()")
+                creators = self.findCreators(cString, docTypes) #if there is one
+                print("After findCreators()")
 #    creatorRoles = getCreatorRoles(creatorNames) #function should be unnecessary by using getPertinentPersonInfo
-		creatorsToBeWritten = getPertinentPersonInfo(creators)
-		data["Creator 1 first name"] = creatorsToBeWritten
+                creatorsToBeWritten = getPertinentPersonInfo(creators)
+                self.data["Creator 1 first name"] = creatorsToBeWritten
 
 
-	def getfigNum(self, s):
-		"Receives caption string. Return figure number, in the form of a string."
-		x = 0
-		while s[x] is not ' ':  #figure number is everything from beginning of line to first ' '
-			x += 1
-		return s[0:x] #slice from position 0 up to, but not including position x
+        def getFigNum(self, s):
+                "Receives caption string. Return figure number, in the form of a string."
+                x = 0
+                while not s[x].isspace():  #figure number is everything from beginning of line to first ' '
+                        x += 1
+                result = s[0:x] #slice from position 0 up to, but not including position x
+                print("getFigNum returned "+ result)       
+                return result
 
-	def getCaption(self, s):
-		"Receives entire caption string. Returns the caption (i.e., the entire string except for the figure number)."
-		x = 0
-		while s[x] is not ' ':
-			x += 1
-		return s[x+1:] #slice from after ' ' to end, which is entire caption
-
-	def findCreators(self, s):
-		"Receives the entire caption string. Returns a list containing any available creator names. If known, update their role."
-		#most of the time, if there is a drawing, the creator is said afterward with the introductory clause "by". Figures from outside the group of authors tend to be "courtesy of" the figure donor.
-
-		creatorKeyPhrases = ["by", "courtesy of"] #move to declaration section?
-
-		while len(creatorNames) is 0:
-			for word in s:
-				#will attempt to recognize keyphrases using 
-				for entry in creatorKeyPhrases:
-					if s[index(word):].startswith(entry):
-						tempNames = ""
-						for w in s[s.index(word)]: #for rest of words starting from word after by
-							if i >= 10:  #determines how many other words will be in string passed to findPersons function (10 should be enough). Otherwise stops early when it reaches end of string
-								break
-							tempStr += w
-							i += 1
-
-						tempNames = findPeople(tempStr) #function checks if next word is capitalized --> whether word after by is a name
+        def getCaption(self, s):
+                "Receives entire caption string. Returns the caption (i.e., the entire string except for the figure number)."
+                x = 0
+                while not s[x].isspace():
+                        x += 1
+                result = s[x+1:] #slice from after ' ' to end, which is entire caption
+                print("getCaption returned "+ result)
+                return result
 
 
-						if len(tempNames) != 0: #if it succeeded in finding names after the "by", probably the creator(s)
-							creatorNames = tempNames
-							#should break out of loop and function should finish by this point, because len(creatorNames) != 0
+        def findCreators(self, s, dTypes):
+                "Receives the entire caption string. Returns a list containing any available creator names. If known, update their role."
+                #most of the time, if there is a drawing, the creator is said afterward with the introductory clause "by". Figures from outside the group of authors tend to be "courtesy of" the figure donor.
 
-		#found creator by this point. Time to figure out his role.
-		for person in creatorNames:
-			person.addCreatorRole("")  #give it a field in the dictionary, regardless of whether it is known. For printing to CSV
+                creatorKeyPhrases = ["by", "courtesy of"] #move to declaration section?
+                creatorNames = []
+                tempNames = findPeople(s, "creator")
 
-			if docType == "drawing" or docType == "photograph":
-				person.addCreatorRole("Image creator") #controlled vocabulary word
+                for name in tempNames:
+                        for entry in creatorKeyPhrases:
+                                if entry not in s:
+                                        continue
+                                else:
+                                        if(s.index(entry) + len(entry) + len(' ') == s.index(name.getFirstName())): #if the keyphrase comes right before the name
+                                                creatorNames.append(name)
+                        
+
+                #found creator(s?) by this point. Time to figure out his role.
+                for person in creatorNames:
+                        person.addCreatorRole("")  #give it a field in the dictionary, regardless of whether it is known. For printing to CSV
+
+                        creatorRole = ""
+                        
+                        if len(dTypes) != 0:
+                                for t in dTypes:
+                                        creatorRole = creatorRole + docTypeDict[t] + IN_CELL_DELIMITER
+                                creatorRole = creatorRole[:-1] #remove last delimiter
+                        else:
+                                creatorRole = "image creator" #default role, as most figures are images taken by the creator, but may not be clearly attributed
+
+                        person.addCreatorRole(creatorRole) #should override the previously empty datafield for the creator
+
+                result = creatorNames
+                print("findCreators returned "+ str(result))
+                return result
 
  # def getCreatorRoles(self, l):
  #   "Given a list of creators, return a list of each creator's role in the order in which the creators were located in the list."
@@ -613,63 +635,65 @@ class DataLine:
  #     l.append(Creator["creatorRole"])
  #   return roles
 
+        def getData(self):
+                return self.data
 
-	def writeToFile(self, f):
-		"Given a file, writes out its own contents to the files, according to the order in which the fields are written."
-		"(Checks order by comparing keys of itself to list of metadata fields.)"
+        def writeToFile(self, f):
+                "Given a file, writes out its own contents to the files, according to the order in which the fields are written."
+                "(Checks order by comparing keys of itself to list of metadata fields.)"
 
-		############  NOTE: If data from a Person ends up needing to be printed in several locations on the metadata, this will have to be changed.
+                ############  NOTE: If data from a Person ends up needing to be printed in several locations on the metadata, this will have to be changed.
 
-		s = ""
-		editorsWritten = false
-		authorsWritten = false
-		creatorsWritten = false
+                s = ""
+                editorsWritten = False
+                authorsWritten = False
+                creatorsWritten = False
 
-		for key in metadataFields:  #follows the order of the metadata fields given! So don't need to worry about that
-			if key in self.data:
-				#if self.data[key] is list:
-				#  s = listToString(self.data[key])
-				#else:
-				if "editor" in lower(key) and editorsWritten == false:
-					editorsWritten = True
-				if "author" in lower(key) and authorsWritten == false:
-					authorsWritten = True
-				if "creator" in lower(key) and creatorsWritten == false:
-					creatorsWritten = True
+                for key in metadataFields:  #follows the order of the metadata fields given! So don't need to worry about that
+                        if key in self.data:
+                                #if self.data[key] is list:
+                                #  s = listToString(self.data[key])
+                                #else:
+                                if "editor" in key.lower() and editorsWritten == False:
+                                        editorsWritten = True
+                                if "author" in key.lower() and authorsWritten == False:
+                                        authorsWritten = True
+                                if "creator" in key.lower() and creatorsWritten == False:
+                                        creatorsWritten = True
 
-				t = self.data[key]
-			#need to make it so that string passed in for printing has correct amount of delimiters! Because this will prevent empty cells being written for editors/authors/creators.
-				if ("editor" in lower(key) and editorsWritten == True) or ("author" in lower(key) and authorsWritten == True) or ("creator" in lower(key) and creatorsWritten == True):
-					s = listToString(self.data[key])
-					n = numberOfInstancesOf(DELIMITER, s) #implement
+                                t = self.data[key]
+                        #need to make it so that string passed in for printing has correct amount of delimiters! Because this will prevent empty cells being written for editors/authors/creators.
+                                if ("editor" in key.lower() and editorsWritten == True) or ("author" in key.lower() and authorsWritten == True) or ("creator" in key.lower() and creatorsWritten == True):
+                                        s = listToString(self.data[key], DELIMITER)
+                                        n = numberOfInstancesOf(DELIMITER, s) #implement
 
-					#in the end, there needs to be (number of pertinent data entries for person, n1)*(number of people to be printed, n2) - 1 because f.write(s+DELIMITER) takes care of one of them.
-					#Each Person has three pieces of information that do not need to be printed, as they are not provided (email, institution) or used internally (title).
-					#So n1 = len(t.info) - 3
-					#n2 = PERSONS_MAX
-					#number of extra DELIMITERs to be printed is n1*n2-(n+1)
-					n1 = len(t.info) - 3
-					xd = n1 * PERSONS_MAX - (n+1)
+                                        #in the end, there needs to be (number of pertinent data entries for person, n1)*(number of people to be printed, n2) - 1 because f.write(s+DELIMITER) takes care of one of them.
+                                        #Each Person has three pieces of information that do not need to be printed, as they are not provided (email, institution) or used internally (title).
+                                        #So n1 = len(t.info) - 3
+                                        #n2 = PERSONS_MAX
+                                        #number of extra DELIMITERs to be printed is n1*n2-(n+1)
+                                        n1 = len(t.info) - 3
+                                        xd = n1 * PERSONS_MAX - (n+1)
 
-					for x in xrange[0, xd]:
-						s += DELIMITER
+                                        for x in xrange[0, xd]:
+                                                s += DELIMITER
 
-				else:
-					s = t
+                                else:
+                                        s = t
 
-			else:
-				s = ""  #means we don't have that information from the caption (not in dataLine's dictionary).
+                        else:
+                                s = ""  #means we don't have that information from the caption (not in dataLine's dictionary).
 
-			f.write(bytes(s, 'utf8') + DELIMITER)  #write to file
+                        f.write(bytes(s, 'utf8') + bytes(DELIMITER, 'utf8'))  #write to file
 
-		#after going through all of them, will have extra DELIMITER at end, need to change to newline
-		
-		#after printing all the appropriate values
-		f.seek(-1, 1) #goes one byte, i.e. one character, to the left from the current position (which should be the current end of the file)
-		f.write('\n') #prints the newline, so that file is in correct position to be written by next newline file.
-									#will need to remove last newline character at the very end of the file.
+                #after going through all of them, will have extra DELIMITER at end, need to change to newline
+                
+                #after printing all the appropriate values
+                f.seek(-1, 1) #goes one byte, i.e. one character, to the left from the current position (which should be the current end of the file)
+                f.write('\n') #prints the newline, so that file is in correct position to be written by next newline file.
+                                                                        #will need to remove last newline character at the very end of the file.
 
-
+                print("writeToFile exited successfully.")
 
 
 
@@ -722,10 +746,10 @@ class DataLine:
 with open("SAIS Metadata.csv", 'wb') as o: #creates the .csv file to which we will be writing. b = "binary mode" enables seeking from relative cursor positions
         writeCSVHeaderToFile(metadataFields, o)
 
-        with open("SAIS Captions.txt", 'rb') as cl: #cl = captionList. Read-only
+        with open("SAIS Captions.txt", 'r', encoding = 'utf-8') as cl: #cl = captionList. Read-only
                 for line in cl:
                         lineOfData  = DataLine(line)
-                        writeToFile(lineOfData, o)
+                        lineOfData.writeToFile(o)
 
 #        o.seek(-1, 2) #goes right before very last character in file
 #        o.truncate() (#removes final unnecessary newline character)
