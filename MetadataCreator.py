@@ -10,7 +10,7 @@
 
 #Worth noting: when writing to file, will need to convert strings to bytes using bytes(string, encoding scheme)
 
-DELIMITER = ','  #will be comma-separated CSV.
+DELIMITER = ','  #will be tab-separated
 IN_CELL_DELIMITER = ';' #when phrases need to be differentiated within a cell in the CSV
 PERSONS_MAX = 10 #total number of people of a specific type, e.g. Creator or Author, in a row. Determined by Metadata Fields.txt. To simplify code, all the different types of people have the same max.
 
@@ -282,10 +282,12 @@ def getPertinentPersonInfo(l):
         s = ""
         
         for person in l:
-                s += person.getFirstName() + DELIMITER + person.getLastName()
+                s += person.getFirstName() + DELIMITER + person.getLastName() + DELIMITER       #have delimiter at end in case several people are relevant
 
                 if person.hasCreatorRole():
-                        s += DELIMITER + person.getCreatorRole()
+                        s += person.getCreatorRole() + DELIMITER        #have delimiter at end in case several people are relevant
+
+        s = s[:-1] #remove last delimiter
 
         return s
         
@@ -504,7 +506,7 @@ class DataLine:
 
                 ###   UNIVERSAL METADATA TERMS  ###
 
-                self.data["Book Title"] = bookTitle
+                self.data["Book title"] = bookTitle
                 #bookTitle is variable found in "Getting information from Table of Contents" section
                 self.data["Year"] = ""
                 self.data["Description"] = ""
@@ -524,6 +526,7 @@ class DataLine:
 
                 ###   METADATA TERMS THAT VARY BY CHAPTER  ###
 
+                print("captionString is " + captionString)
                 #useful for definition of functions
                 chapterNumber = int(captionString[0]) #first char of each caption is chapter number
                 self.data["Chapter"] = chapterNumber
@@ -587,7 +590,7 @@ class DataLine:
                 x = 0
                 while not s[x].isspace():
                         x += 1
-                result = s[x+1:] #slice from after ' ' to end, which is entire caption
+                result = s[x+1:-1] #slice from after ' ' to end excluding newline
                 print("getCaption returned "+ result)
                 return result
 
@@ -616,8 +619,15 @@ class DataLine:
                         creatorRole = ""
                         
                         if len(dTypes) != 0:
+                                print(dTypes)
                                 for t in dTypes:
-                                        creatorRole = creatorRole + docTypeDict[t] + IN_CELL_DELIMITER
+                                        if t is list:
+                                                for s in t:
+                                                        creatorRole = creatorRole + docTypeDict[s] + IN_CELL_DELIMITER
+                                        elif t is str:
+                                                creatorRole = creatorRole + docTypeDict[t] + IN_CELL_DELIMITER
+                                        else:
+                                                print("Problem in finding creators!")
                                 creatorRole = creatorRole[:-1] #remove last delimiter
                         else:
                                 creatorRole = "image creator" #default role, as most figures are images taken by the creator, but may not be clearly attributed
@@ -649,48 +659,64 @@ class DataLine:
                 authorsWritten = False
                 creatorsWritten = False
 
+                print("self.data is on the next line:")
+                print(self.data)
+
                 for key in metadataFields:  #follows the order of the metadata fields given! So don't need to worry about that
+                        if ("editor" in key.lower() and editorsWritten == True) or ("author" in key.lower() and authorsWritten == True) or ("creator" in key.lower() and creatorsWritten == True):
+                                continue
+                        print("key = " + key)
+                        print(key in self.data)
                         if key in self.data:
-                                #if self.data[key] is list:
-                                #  s = listToString(self.data[key])
-                                #else:
-                                if "editor" in key.lower() and editorsWritten == False:
-                                        editorsWritten = True
-                                if "author" in key.lower() and authorsWritten == False:
-                                        authorsWritten = True
-                                if "creator" in key.lower() and creatorsWritten == False:
-                                        creatorsWritten = True
+##                                #if self.data[key] is list:
+##                                #  s = listToString(self.data[key])
+##                                #else:
+##                                if "editor" in key.lower() and editorsWritten == False:
+##                                        editorsWritten = True
+##                                if "author" in key.lower() and authorsWritten == False:
+##                                        authorsWritten = True
+##                                if "creator" in key.lower() and creatorsWritten == False:
+##                                        creatorsWritten = True
 
-                                t = self.data[key]
-                        #need to make it so that string passed in for printing has correct amount of delimiters! Because this will prevent empty cells being written for editors/authors/creators.
-                                if ("editor" in key.lower() and editorsWritten == True) or ("author" in key.lower() and authorsWritten == True) or ("creator" in key.lower() and creatorsWritten == True):
-                                        s = listToString(self.data[key], DELIMITER)
-                                        n = numberOfInstancesOf(DELIMITER, s) #implement
-
-                                        #in the end, there needs to be (number of pertinent data entries for person, n1)*(number of people to be printed, n2) - 1 because f.write(s+DELIMITER) takes care of one of them.
-                                        #Each Person has three pieces of information that do not need to be printed, as they are not provided (email, institution) or used internally (title).
-                                        #So n1 = len(t.info) - 3
-                                        #n2 = PERSONS_MAX
-                                        #number of extra DELIMITERs to be printed is n1*n2-(n+1)
-                                        n1 = len(t.info) - 3
-                                        xd = n1 * PERSONS_MAX - (n+1)
-
-                                        for x in xrange[0, xd]:
-                                                s += DELIMITER
-
-                                else:
-                                        s = t
+                                print("The value that matched the key is the following:")
+                                print(self.data[key])
+                                print("This value is a type of the following:" + str(type(self.data)))
+                                s = str(self.data[key]) #in case data isn't in the form of a string
+                                print("s = " + s)
+                                print('\n')
+##                                print(self.data)
+##                                print(t)
+##                                
+##                        #need to make it so that string passed in for printing has correct amount of delimiters! Because this will prevent empty cells being written for editors/authors/creators.
+##                                if ("editor" in key.lower() and editorsWritten == True) or ("author" in key.lower() and authorsWritten == True) or ("creator" in key.lower() and creatorsWritten == True):
+##                                        s = listToString(self.data[key], DELIMITER)
+##                                        n = numberOfInstancesOf(DELIMITER, s) #implement
+##
+##                                        #in the end, there needs to be (number of pertinent data entries for person, n1)*(number of people to be printed, n2) - 1 because f.write(s+DELIMITER) takes care of one of them.
+##                                        #Each Person has three pieces of information that do not need to be printed, as they are not provided (email, institution) or used internally (title).
+##                                        #So n1 = len(t.info) - 3
+##                                        #n2 = PERSONS_MAX
+##                                        #number of extra DELIMITERs to be printed is n1*n2-(n+1)
+##                                        n1 = len(t.info) - 3
+##                                        xd = n1 * PERSONS_MAX - (n+1)
+##
+##                                        for x in xrange[0, xd]:
+##                                                s += DELIMITER
+##
+##                                else:
+##                                        s = t
 
                         else:
                                 s = ""  #means we don't have that information from the caption (not in dataLine's dictionary).
 
+#                        print("s in writeToFile is the following: " + s)
                         f.write(bytes(s, 'utf8') + bytes(DELIMITER, 'utf8'))  #write to file
 
                 #after going through all of them, will have extra DELIMITER at end, need to change to newline
                 
                 #after printing all the appropriate values
                 f.seek(-1, 1) #goes one byte, i.e. one character, to the left from the current position (which should be the current end of the file)
-                f.write('\n') #prints the newline, so that file is in correct position to be written by next newline file.
+                f.write(bytes('\n', 'utf8')) #prints the newline, so that file is in correct position to be written by next newline file.
                                                                         #will need to remove last newline character at the very end of the file.
 
                 print("writeToFile exited successfully.")
@@ -746,10 +772,17 @@ class DataLine:
 with open("SAIS Metadata.csv", 'wb') as o: #creates the .csv file to which we will be writing. b = "binary mode" enables seeking from relative cursor positions
         writeCSVHeaderToFile(metadataFields, o)
 
+        x = 0 #debugging purposes
+
         with open("SAIS Captions.txt", 'r', encoding = 'utf-8') as cl: #cl = captionList. Read-only
                 for line in cl:
                         lineOfData  = DataLine(line)
                         lineOfData.writeToFile(o)
+
+                        #for debugging purposes
+                        x += 1
+                        if x > 2:
+                                break
 
 #        o.seek(-1, 2) #goes right before very last character in file
 #        o.truncate() (#removes final unnecessary newline character)
