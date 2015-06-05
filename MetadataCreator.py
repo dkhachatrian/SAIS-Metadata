@@ -1,8 +1,7 @@
 #from collections import namedtuple  #immutable once stated, should be fine for the fields that never change from chapter to chapter
 #import fnmatch  #allow to search for strings with "wildcard" characters
 #from collections import queue #may want to change my lists to queues? (Since using FIFO for printing)
-
-#Turns out I haven't needed to import anything yet...
+import pdb #for debugging
 
 ###############################################
 ######### A bunch of declarations...###########
@@ -10,7 +9,7 @@
 
 #Worth noting: when writing to file, will need to convert strings to bytes using bytes(string, encoding scheme)
 
-DELIMITER = ','  #will be tab-separated
+DELIMITER = '\t'  #will be tab-separated
 IN_CELL_DELIMITER = ';' #when phrases need to be differentiated within a cell in the CSV
 PERSONS_MAX = 10 #total number of people of a specific type, e.g. Creator or Author, in a row. Determined by Metadata Fields.txt. To simplify code, all the different types of people have the same max.
 
@@ -267,12 +266,18 @@ def listToString(l, d):
 def writeCSVHeaderToFile(l, f):
         "Given a list of metadata headers in the proper order, writes them to file in the order given, separated by the appropriate delimiter."
         "Inserts newline at the end of printing all the headers."
-
+        print("l in writeCSVHeaderToFile is the following:")
+        print(l)
+        s = ""
         for entry in l:
-                f.write(bytes(entry, 'utf8') + bytes(DELIMITER, 'utf8'))
+#                f.write(bytes(entry, 'utf8') + bytes(DELIMITER, 'utf8'))
+                s = s + entry + DELIMITER
 
-        f.seek(-1, 1)   #go back one character from the current position (i.e., to the last delimiter written)
-        f.write(bytes('\n', 'utf8'))
+        s = s[:-1]
+        s += '\n'
+#        f.seek(-1, 1)   #go back one character from the current position (i.e., to the last delimiter written)
+        print("s in writeCSVHeadertoFile is:" + s)
+        f.write(s)
 
 def getPertinentPersonInfo(l):
         "Given a dictionary containing a Person's data, return a string necessary for writing to CSV (first and last name, role if a creator)."
@@ -345,7 +350,7 @@ with open("Table of Contents.txt", 'r', encoding = 'utf8') as toc:
 
                         if x != -1: 
                                 x += len("Title: ")     #puts x after "Title: "
-                                bookTitle = line[x:]    #everything after the denoter
+                                bookTitle = line[x:-1]    #everything after the denoter, but not including the newline
                                 continue
 
                 #find the editors...
@@ -534,7 +539,7 @@ class DataLine:
 #               print(str(chapterNumber))
 #               print(chapterTitles)
 #               print(len(chapterTitles))
-                self.data["Chapter Title"] = chapterTitles[chapterNumber - 1] #chapter title i is stored in the (i-1)'th position in the chapterTitles lists.
+                self.data["Chapter title"] = chapterTitles[chapterNumber - 1] #chapter title i is stored in the (i-1)'th position in the chapterTitles lists.
                 #chaperTitles is variable found in "Getting information from Table of Contents" section
 #                print(authors['2'][0])
 #                print(authors)
@@ -664,26 +669,27 @@ class DataLine:
 
                 for key in metadataFields:  #follows the order of the metadata fields given! So don't need to worry about that
                         if ("editor" in key.lower() and editorsWritten == True) or ("author" in key.lower() and authorsWritten == True) or ("creator" in key.lower() and creatorsWritten == True):
+                                s += DELIMITER #go to next cell
                                 continue
                         print("key = " + key)
                         print(key in self.data)
                         if key in self.data:
-##                                #if self.data[key] is list:
-##                                #  s = listToString(self.data[key])
-##                                #else:
-##                                if "editor" in key.lower() and editorsWritten == False:
-##                                        editorsWritten = True
-##                                if "author" in key.lower() and authorsWritten == False:
-##                                        authorsWritten = True
-##                                if "creator" in key.lower() and creatorsWritten == False:
-##                                        creatorsWritten = True
+                                #if self.data[key] is list:
+                                #  s = listToString(self.data[key])
+                                #else:
+                                if "editor" in key.lower() and editorsWritten == False:
+                                        editorsWritten = True
+                                if "author" in key.lower() and authorsWritten == False:
+                                        authorsWritten = True
+                                if "creator" in key.lower() and creatorsWritten == False:
+                                        creatorsWritten = True
 
                                 print("The value that matched the key is the following:")
                                 print(self.data[key])
-                                print("This value is a type of the following:" + str(type(self.data)))
-                                s = str(self.data[key]) #in case data isn't in the form of a string
-                                print("s = " + s)
-                                print('\n')
+                                print("This value is a type of the following:" + str(type(self.data[key])))
+                                s += str(self.data[key]) #in case data isn't in the form of a string
+#                                print("s = " + s)
+#                                print('\n')
 ##                                print(self.data)
 ##                                print(t)
 ##                                
@@ -707,16 +713,21 @@ class DataLine:
 ##                                        s = t
 
                         else:
-                                s = ""  #means we don't have that information from the caption (not in dataLine's dictionary).
+                                s += ""  #means we don't have that information from the caption (not in dataLine's dictionary).
+
+                        s += DELIMITER
 
 #                        print("s in writeToFile is the following: " + s)
-                        f.write(bytes(s, 'utf8') + bytes(DELIMITER, 'utf8'))  #write to file
+#                        f.write(bytes(s, 'utf8') + bytes(DELIMITER, 'utf8'))  #write to file
 
                 #after going through all of them, will have extra DELIMITER at end, need to change to newline
-                
+                s = s[:-1] #cut off last delimiter
+                s += '\n'
+                print("s right before writing to file is the following: " + s)
                 #after printing all the appropriate values
-                f.seek(-1, 1) #goes one byte, i.e. one character, to the left from the current position (which should be the current end of the file)
-                f.write(bytes('\n', 'utf8')) #prints the newline, so that file is in correct position to be written by next newline file.
+#                pdb.set_trace()
+#                f.seek(-1, 1) #goes one byte, i.e. one character, to the left from the current position (which should be the current end of the file)
+                f.write(s) #prints the newline, so that file is in correct position to be written by next newline file.
                                                                         #will need to remove last newline character at the very end of the file.
 
                 print("writeToFile exited successfully.")
@@ -769,9 +780,8 @@ class DataLine:
 
 
 
-with open("SAIS Metadata.csv", 'wb') as o: #creates the .csv file to which we will be writing. b = "binary mode" enables seeking from relative cursor positions
+with open("SAIS Metadata.txt", 'w', encoding = 'utf-8') as o: #creates the .csv file to which we will be writing. b = "binary mode" enables seeking from relative cursor positions
         writeCSVHeaderToFile(metadataFields, o)
-
         x = 0 #debugging purposes
 
         with open("SAIS Captions.txt", 'r', encoding = 'utf-8') as cl: #cl = captionList. Read-only
@@ -781,7 +791,7 @@ with open("SAIS Metadata.csv", 'wb') as o: #creates the .csv file to which we wi
 
                         #for debugging purposes
                         x += 1
-                        if x > 2:
+                        if x > 1:
                                 break
 
 #        o.seek(-1, 2) #goes right before very last character in file
