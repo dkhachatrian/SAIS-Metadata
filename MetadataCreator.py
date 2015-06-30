@@ -11,10 +11,11 @@ import pdb #for debugging
 
 DELIMITER = '\t'  #will be tab-separated
 IN_CELL_DELIMITER = ';' #when phrases need to be differentiated within a cell in the CSV
-PERSONS_MAX = 10 #total number of people of a specific type, e.g. Creator or Author, in a row. Determined by Metadata Fields.txt. To simplify code, all the different types of people have the same max.
+PERSONS_MAX = 10 #total number of people of a specific type, e.g. Creator or Author, in a row. Determined by Metadata Fields.txt.
+                #To simplify code, all the different types of people have the same max.
 
 excelHeader = ""
-metadataFields = []
+metadataFields = [] #list
 
 with open("Metadata Fields.txt", 'r', encoding = 'utf8') as mf:
         for line in mf:
@@ -25,7 +26,7 @@ with open("Metadata Fields.txt", 'r', encoding = 'utf8') as mf:
         #excelHeader does NOT have a \n at the end
 
 #done with getting metadata fields from file
-print(excelHeader)
+#print(excelHeader)
 ### DEBUGGING ###
 #print(metadataFields)
 #print(excelHeader)
@@ -409,8 +410,14 @@ with open("Table of Contents.txt", 'r', encoding = 'utf8') as toc:
                         #copy.deepcopy is not needed because the Persons in the list shouldn't be deleted
 
 #done with table of contents
+def printAuthors(l):
+        for chapter in l:
+                print("Chapter = " + chapter)
+                tempList = l[chapter]
+                for person in tempList:
+                        person.display()
 
-
+printAuthors(authors)
 #NOTE: needs three dots the line before the names to find properly
 
 
@@ -533,7 +540,7 @@ class DataLine:
 
                 print("captionString is " + captionString)
                 #useful for definition of functions
-                chapterNumber = int(captionString[0]) #first char of each caption is chapter number
+                chapterNumber = int(self.getChapterNum(captionString)) #first char of each caption is chapter number
                 self.data["Chapter"] = chapterNumber
 #               print(captionString)
 #               print(str(chapterNumber))
@@ -544,8 +551,11 @@ class DataLine:
 #                print(authors['2'][0])
 #                print(authors)
                 chapterAuthors = authors[str(chapterNumber)] #returns a list of 1 or more authors, if implemented properly.
+                print("chapterAuthors = ")
+                print(chapterAuthors)
                 #authors is variable found in "Getting information from Table of Contents" section
-                self.data["Author 1 first name"] = listToString(chapterAuthors, DELIMITER) #listToString will call "getPertinentPersonInfo" function if list is composed of Persons.
+                self.data["Author 1 first name"] = getPertinentPersonInfo(chapterAuthors)
+#                self.data["Author 1 first name"] = listToString(chapterAuthors, DELIMITER) #listToString will call "getPertinentPersonInfo" function if list is composed of Persons.
 
 
                 ###   METADATA TERMS THAT VARY BY FIGURE  ###
@@ -581,6 +591,16 @@ class DataLine:
                 self.data["Creator 1 first name"] = creatorsToBeWritten
 
 
+        def getChapterNum(self, s):
+                """Receives caption string. Returns chapter number (decided as the number before the first period in the caption string."""
+                        
+                x = 0
+                while s[x] != '.':
+                        x += 1
+                result = s[0:x]
+                print("getChapterNumber returned " + result)
+                return result
+                                
         def getFigNum(self, s):
                 "Receives caption string. Return figure number, in the form of a string."
                 x = 0
@@ -667,12 +687,21 @@ class DataLine:
                 print("self.data is on the next line:")
                 print(self.data)
 
-                for key in metadataFields:  #follows the order of the metadata fields given! So don't need to worry about that
-                        if ("editor" in key.lower() and editorsWritten == True) or ("author" in key.lower() and authorsWritten == True) or ("creator" in key.lower() and creatorsWritten == True):
-                                s += DELIMITER #go to next cell
-                                continue
+                x = 0
+
+                while x < len(metadataFields):  #follows the order of the metadata fields given! So don't need to worry about that
+                        key = metadataFields[x]
+                        print("x = " + str(x))
                         print("key = " + key)
-                        print(key in self.data)
+                        
+                        #print(key in self.data)
+                        if (("editor" in key.lower() and editorsWritten == True)
+                                or ("author" in key.lower() and authorsWritten == True)
+                                or ("creator" in key.lower() and creatorsWritten == True)):
+                                s += DELIMITER #skips down to adding delimiter and recounting for x
+                                x += 1
+                                continue
+                        
                         if key in self.data:
                                 #if self.data[key] is list:
                                 #  s = listToString(self.data[key])
@@ -683,11 +712,12 @@ class DataLine:
                                         authorsWritten = True
                                 if "creator" in key.lower() and creatorsWritten == False:
                                         creatorsWritten = True
-
                                 print("The value that matched the key is the following:")
                                 print(self.data[key])
                                 print("This value is a type of the following:" + str(type(self.data[key])))
                                 s += str(self.data[key]) #in case data isn't in the form of a string
+                        else:
+                                s += ""  #means we don't have that information from the caption (not in dataLine's dictionary).
 #                                print("s = " + s)
 #                                print('\n')
 ##                                print(self.data)
@@ -712,10 +742,9 @@ class DataLine:
 ##                                else:
 ##                                        s = t
 
-                        else:
-                                s += ""  #means we don't have that information from the caption (not in dataLine's dictionary).
 
                         s += DELIMITER
+                        x = s.count(DELIMITER)
 
 #                        print("s in writeToFile is the following: " + s)
 #                        f.write(bytes(s, 'utf8') + bytes(DELIMITER, 'utf8'))  #write to file
@@ -791,7 +820,7 @@ with open("SAIS Metadata.txt", 'w', encoding = 'utf-8') as o: #creates the .csv 
 
                         #for debugging purposes
                         x += 1
-                        if x > 1:
+                        if x > 0:
                                 break
 
 #        o.seek(-1, 2) #goes right before very last character in file
