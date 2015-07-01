@@ -1,0 +1,50 @@
+Book title
+Year
+Description
+Editor 1 first name
+Editor 1 last name
+Editor 2 first name
+Editor 2 last name
+Editor 3 first name
+Editor 3 last name
+Publisher
+Publisher location
+DOI
+ISBN
+Chapter
+Chapter title
+Author 1 first name
+Author 1 last name
+Author 2 first name
+Author 2 last name
+Author 3 first name
+Author 3 last name
+Email
+Affiliated institution
+Figure number
+Caption
+Copyright
+Object type
+Material type
+Documentation type
+Creator 1 first name
+Creator 1 last name
+Creator 1 role
+Creator 2 first name
+Creator 2 last name
+Creator 2 role
+Creator 3 first name
+Creator 3 last name
+Creator 3 role
+Cultural term
+Site name
+Date type
+Start date
+End date
+Temporal terms
+Latitude max
+Latitude min
+Longitude max
+Longitude min
+Projection
+Geographic keywords
