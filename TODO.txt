@@ -1,2 +1,3 @@
 - find longest metadata line, with length (see Metadata Longest Line file, currently on flashdrive, does most of that already)
 - make script to extract all proper nouns from captions (see Person_list_creator, does most of that already)
+- edit the metadata field header to match new spec
