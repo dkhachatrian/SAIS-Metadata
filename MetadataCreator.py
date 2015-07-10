@@ -295,17 +295,19 @@ def getPertinentPersonInfo(l):
         s = ""
         
         for person in l:
-                s += person.fullName() + IN_CELL_DELIMITER      #have delimiter at end in case several people are relevant
+                s += person.fullName() + IN_CELL_DELIMITER + ' '     #have delimiter at end in case several people are relevant
 
-        s = s[:-1] #remove last in-cell delimiter
+        s = s[:-2] #remove last in-cell delimiter and space
 
         s += DELIMITER
 
         for person in l:
                 if person.hasCreatorRole():
-                        s += person.getCreatorRole() + IN_CELL_DELIMITER       #have delimiter at end in case several people are relevant
+                        s += person.getCreatorRole() + IN_CELL_DELIMITER + ' '      #have delimiter at end in case several people are relevant
+                else:
+                        print("No creator role found!")
 
-        s = s[:-1] #remove last delimiter, whether in-cell or out-cell
+        s = s[:-2] #remove space and last delimiter, whether in-cell or out-cell
 
         return s
         
@@ -429,7 +431,7 @@ def printAuthors(l):
                 for person in tempList:
                         person.display()
 
-printAuthors(authors)
+#printAuthors(authors)
 #NOTE: needs three dots the line before the names to find properly
 
 ##############
@@ -444,11 +446,19 @@ def getCreatorsFromFile(f):
 
         x = -1
         d = {}
+        l = []
         ll = []
+        lp = []
+        cleanedLP = []
 
         for line in f:
+
+                
                 if line == '\n' or line.startswith('//'):
                         continue
+
+#                if "Chapter 5:" in line: #debugging...
+#                        break #debugging...
 
                 if line.startswith('Chapter '):
                         i = len('Chapter ')
@@ -460,21 +470,39 @@ def getCreatorsFromFile(f):
 
                 else:
                         l = line.split(';') #list
-                        print("l = " + str(l))
+                        ll = []
+                        lp = []
+                        cleanedLP = [] #just making sure they're clear...
+#                        print("l = " + str(l))
                         for entry in l:
                                 ll.append(entry.split(',')) #list of lists
-                        print("ll = " + str(ll))
+#                        print("ll = " + str(ll))
                         i = 0 
                         for entry in ll:
+#                                print(len(entry))
+                                for i in range(len(entry)):
+#                                        print("entry[x] = " + str(entry[i]))
+                                        if (entry[i])[0] == ' ':
+                                                entry[i] = entry[i][1:]
+#                                print("entry in ll = " + str(entry))
                                 if len(entry) == 2:
                                         #print(ll[0])
                                         #print(type(ll[0]))
-                                        lp = Person(entry[0], entry[1]) #lists of Persons
+                                        p = Person(entry[0], "creator")
+                                        p.addCreatorRole(entry[1])
+                                        lp.append(p) #lists of Persons
 
-                        print("lp = " + str(lp))
-
-                        d.setdefault(x,[]).append(lp)        
+#                        print("lp = " + str(lp))
+                        cleanedLP = list(set(lp))
+                        
+                        d.setdefault(x,[]).append(cleanedLP)        
                         #d[x] = lp #chapter number maps to list of Persons
+
+                        x = -1
+                        #l = []
+                        #ll = []
+                        #lp = []
+                        cleanedLP = []
 
 
         return d
@@ -484,7 +512,17 @@ creatorDictionary = {}
 with open('Manual Person List.txt', 'r', encoding = 'utf8') as cl:
         creatorDictionary = getCreatorsFromFile(cl)
 
+def printCreatorDictionary(d):
+        for key in d:
+                print(key)
+                for persons in d[key]:
+                        for person in persons:
+                                person.display()
+                for x in range(2):
+                        print('\n')
 
+
+printCreatorDictionary(creatorDictionary)
 
 
 ##############
@@ -742,16 +780,43 @@ class DataLine:
                 whether there are any matches in the last names of any of the Creators
                 associated with the current chapter. Returns a list of all such Creators."""
 
+                print("This is the run of createListofCreators for Caption " + str(n) + "." + str(self.data["Figure number"]))
+
                 l = []
+                lln = [] #list of last names. Build this list first...
 
-                print(creatorDictionary)
-                print(creatorDictionary[n])
+                for people in creatorDictionary[n]:
+                        for person in people:
+                                lln.append(person.getLastName())
 
-                for person in creatorDictionary[n]: #chapterNum is passed in as str, need to cast as int to match dictionary keys
+                
+
+                #print(creatorDictionary)
+                #print(creatorDictionary[n])
+
+                print("The following are all the people in Chapter " + str(n) + ":")
+
+                for people in creatorDictionary[n]: #chapterNum is passed in as str, need to cast as int to match dictionary keys
+                        for person in people:
+                                person.display()
+                                ln = person.getLastName()
+                                if ln in s:
+                                        if str(lln).count(ln) == 1: #if there's only one instance of the last name in the list...
+                                                l.append(person)
+                                                print("Added by #1.")
+                                        elif person.getFirstName() in s:
+                                                l.append(person)
+                                                print("Added by #2.")
+                                        else:
+                                                print("Skipped.")
+                                                continue #if not enough information for match, will err on the side of not filling in the data
+                
+
+                print("The following are all the creators matched with the current caption:")
+                for person in l:
                         person.display()
-                        if person.getLastName() in s:
-                                l.append(person)
-
+                print('\n')
+                
                 return l
 
  # def getCreatorRoles(self, l):
@@ -918,9 +983,23 @@ with open("SAIS Metadata.txt", 'w', encoding = 'utf-8') as o: #creates the .csv 
                                 lineOfData  = DataLine(line)
                                 lineOfData.writeToFile(o)
 
+
+##with open("SAIS Metadata.txt", 'r', encoding = 'utf-8') as m:
+##        with open("SAIS Metadata CSV Format.csv", 'w', encoding = 'utf8') as c:
+##                for line in m:
+##                        for ch in line:
+##                                if ch == '\t':
+##                                        c.write(',')
+##                                else:
+##                                        c.write(ch)
+                                
+                ## The above didn't fix the problem with the accent marks...And also had trouble dealing with the extra commas (as expected)
+                
+        
+
                         #for debugging purposes
 #                        x += 1
-#                        if x > 0:
+#                        if x > 10:
 #                                break
 
 print("Thank you and good night!")
